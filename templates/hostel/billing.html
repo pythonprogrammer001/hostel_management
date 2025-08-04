@@ -1,0 +1,302 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Billing - {{ pg.name }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2><i class="bi bi-receipt"></i> Billing Management</h2>
+            <div>
+                <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#generateBillsModal">
+                    <i class="bi bi-plus-circle"></i> Generate Bills
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>{{ total_bills }}</h4>
+                        <p class="mb-0">Total Bills</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-receipt-cutoff fs-2"></i>
+                    </div>
+                </div>
+                <small>For {{ selected_date|date:"F Y" }}</small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>₹{{ total_amount|floatformat:0 }}</h4>
+                        <p class="mb-0">Total Amount</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-currency-rupee fs-2"></i>
+                    </div>
+                </div>
+                <small>Billed amount</small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>₹{{ paid_amount|floatformat:0 }}</h4>
+                        <p class="mb-0">Paid Amount</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-check-circle fs-2"></i>
+                    </div>
+                </div>
+                <small>Collected amount</small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>₹{{ pending_amount|floatformat:0 }}</h4>
+                        <p class="mb-0">Pending Amount</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-exclamation-triangle fs-2"></i>
+                    </div>
+                </div>
+                <small>Outstanding dues</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Month Filter -->
+<div class="row mb-3">
+    <div class="col-md-4">
+        <form method="get" class="d-flex">
+            <input type="month" name="month" class="form-control" value="{{ selected_date|date:'Y-m' }}" onchange="this.form.submit()">
+        </form>
+    </div>
+</div>
+
+<!-- Bills Table -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5>Bills for {{ selected_date|date:"F Y" }}</h5>
+            </div>
+            <div class="card-body">
+                {% if bills %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Guest</th>
+                                    <th>Room</th>
+                                    <th>Rent</th>
+                                    <th>Electricity</th>
+                                    <th>Other Charges</th>
+                                    <th>Total</th>
+                                    <th>Paid</th>
+                                    <th>Balance</th>
+                                    <th>Status</th>
+                                    <th>Due Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for bill in bills %}
+                                <tr>
+                                    <td>
+                                        <a href="{% url 'hostel:guest_detail' pg.id bill.guest.id %}" class="text-decoration-none">
+                                            {{ bill.guest.user.get_full_name }}
+                                        </a>
+                                    </td>
+                                    <td>{{ bill.guest.room.room_number }}</td>
+                                    <td>₹{{ bill.rent_amount }}</td>
+                                    <td>₹{{ bill.electricity_amount }}</td>
+                                    <td>₹{{ bill.water_charges|add:bill.maintenance_charges|add:bill.other_charges }}</td>
+                                    <td><strong>₹{{ bill.total_amount }}</strong></td>
+                                    <td>₹{{ bill.paid_amount }}</td>
+                                    <td>
+                                        {% if bill.get_balance_amount > 0 %}
+                                            <span class="text-danger">₹{{ bill.get_balance_amount }}</span>
+                                        {% else %}
+                                            <span class="text-success">₹0</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if bill.status == 'Paid' %}
+                                            <span class="badge bg-success">{{ bill.status }}</span>
+                                        {% elif bill.status == 'Unpaid' %}
+                                            <span class="badge bg-danger">{{ bill.status }}</span>
+                                        {% elif bill.status == 'Partially_Paid' %}
+                                            <span class="badge bg-warning">Partially Paid</span>
+                                        {% else %}
+                                            <span class="badge bg-dark">{{ bill.status }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ bill.due_date|date:"M d, Y" }}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary" onclick="updatePayment({{ bill.id }}, '{{ bill.guest.user.get_full_name }}', {{ bill.total_amount }}, {{ bill.paid_amount }})">
+                                            <i class="bi bi-currency-rupee"></i> Update
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-receipt fs-1 text-muted"></i>
+                        <p class="text-muted mt-3">No bills found for {{ selected_date|date:"F Y" }}</p>
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#generateBillsModal">
+                            <i class="bi bi-plus-circle"></i> Generate Bills
+                        </button>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Generate Bills Modal -->
+<div class="modal fade" id="generateBillsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Generate Bills</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'hostel:generate_bills' pg.id %}">
+                <div class="modal-body">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="month_year" class="form-label">Select Month *</label>
+                        <input type="month" class="form-control" id="month_year" name="month_year" required>
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        This will generate bills for all active guests for the selected month.
+                        Bills will not be generated if they already exist for that month.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Generate Bills</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Update Payment Modal -->
+<div class="modal fade" id="updatePaymentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Update Payment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="paymentForm">
+                    {% csrf_token %}
+                    <input type="hidden" id="billId" name="bill_id">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Guest Name</label>
+                        <input type="text" class="form-control" id="guestName" readonly>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Total Amount</label>
+                            <input type="text" class="form-control" id="totalAmount" readonly>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Current Paid</label>
+                            <input type="text" class="form-control" id="currentPaid" readonly>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="paidAmount" class="form-label">Paid Amount *</label>
+                        <input type="number" class="form-control" id="paidAmount" name="paid_amount" step="0.01" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="paymentMethod" class="form-label">Payment Method</label>
+                        <select class="form-control" id="paymentMethod" name="payment_method">
+                            <option value="cash">Cash</option>
+                            <option value="bank_transfer">Bank Transfer</option>
+                            <option value="upi">UPI</option>
+                            <option value="cheque">Cheque</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="submitPayment()">Update Payment</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function updatePayment(billId, guestName, totalAmount, currentPaid) {
+    $('#billId').val(billId);
+    $('#guestName').val(guestName);
+    $('#totalAmount').val('₹' + totalAmount);
+    $('#currentPaid').val('₹' + currentPaid);
+    $('#paidAmount').val(currentPaid);
+    $('#updatePaymentModal').modal('show');
+}
+
+function submitPayment() {
+    const billId = $('#billId').val();
+    const paidAmount = $('#paidAmount').val();
+    const paymentMethod = $('#paymentMethod').val();
+    
+    $.post(`{% url 'hostel:update_bill_payment' pg.id 0 %}`.replace('0', billId), {
+        'paid_amount': paidAmount,
+        'payment_method': paymentMethod,
+        'csrfmiddlewaretoken': $('[name=csrfmiddlewaretoken]').val()
+    }, function(data) {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error updating payment: ' + data.error);
+        }
+    });
+}
+
+$(document).ready(function() {
+    // Set current month as default for bill generation
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    $('#month_year').val(currentMonth);
+});
+</script>
+{% endblock %}

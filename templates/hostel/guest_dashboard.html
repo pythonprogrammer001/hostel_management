@@ -1,0 +1,313 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}My Dashboard - {{ pg.name }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2><i class="bi bi-house"></i> My Dashboard</h2>
+            <div class="text-muted">
+                <i class="bi bi-building"></i> {{ pg.name }}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Guest Info Card -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                {% if guest_profile.profile_photo %}
+                    <img src="{{ guest_profile.profile_photo.url }}" alt="Profile" class="rounded-circle mb-3" width="100" height="100">
+                {% else %}
+                    <div class="bg-secondary rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 100px; height: 100px;">
+                        <i class="bi bi-person fs-1 text-white"></i>
+                    </div>
+                {% endif %}
+                <h5>{{ guest_profile.user.get_full_name }}</h5>
+                <p class="text-muted">{{ guest_profile.user.username }}</p>
+                <div class="row text-center">
+                    <div class="col-6">
+                        <strong>Room</strong><br>
+                        <span class="badge bg-primary">{{ guest_profile.room.room_number }}</span>
+                    </div>
+                    <div class="col-6">
+                        <strong>Monthly Rent</strong><br>
+                        <span class="text-success">₹{{ guest_profile.rent_amount }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="bi bi-info-circle"></i> Personal Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Email:</strong> {{ guest_profile.user.email }}</p>
+                        <p><strong>Phone:</strong> {{ guest_profile.user.phone }}</p>
+                        <p><strong>Check-in Date:</strong> {{ guest_profile.check_in_date|date:"M d, Y" }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Emergency Contact:</strong> {{ guest_profile.emergency_contact_name }}</p>
+                        <p><strong>Emergency Phone:</strong> {{ guest_profile.emergency_contact_phone }}</p>
+                        <p><strong>ID Proof:</strong> {{ guest_profile.get_id_proof_type_display }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Security Deposit & Pending Bills -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="bi bi-shield-check"></i> Security Deposit</h5>
+            </div>
+            <div class="card-body">
+                {% if security_deposit %}
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h4>₹{{ security_deposit.amount }}</h4>
+                            <p class="mb-0">
+                                Status: 
+                                {% if security_deposit.status == 'Paid' %}
+                                    <span class="badge bg-success">{{ security_deposit.status }}</span>
+                                {% elif security_deposit.status == 'Pending' %}
+                                    <span class="badge bg-warning">{{ security_deposit.status }}</span>
+                                {% elif security_deposit.status == 'Refunded' %}
+                                    <span class="badge bg-info">{{ security_deposit.status }}</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ security_deposit.status }}</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div>
+                            <i class="bi bi-shield-check fs-2 text-success"></i>
+                        </div>
+                    </div>
+                    {% if security_deposit.paid_date %}
+                        <small class="text-muted">Paid on: {{ security_deposit.paid_date|date:"M d, Y" }}</small>
+                    {% endif %}
+                {% else %}
+                    <p class="text-muted">No security deposit information available.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="bi bi-exclamation-triangle"></i> Pending Bills</h5>
+            </div>
+            <div class="card-body">
+                {% if pending_bills %}
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h4 class="text-danger">₹{{ pending_bills|length }} Bills</h4>
+                            <p class="mb-0">
+                                Total Amount: 
+                                <strong class="text-danger">
+                                    ₹{% for bill in pending_bills %}{{ bill.get_balance_amount }}{% if not forloop.last %} + {% endif %}{% endfor %}
+                                </strong>
+                            </p>
+                        </div>
+                        <div>
+                            <i class="bi bi-receipt fs-2 text-danger"></i>
+                        </div>
+                    </div>
+                    <small class="text-muted">{{ pending_bills.count }} pending bill(s)</small>
+                {% else %}
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h4 class="text-success">All Clear!</h4>
+                            <p class="mb-0">No pending bills</p>
+                        </div>
+                        <div>
+                            <i class="bi bi-check-circle fs-2 text-success"></i>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Bills -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="bi bi-receipt"></i> Recent Bills</h5>
+            </div>
+            <div class="card-body">
+                {% if recent_bills %}
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Month</th>
+                                    <th>Rent</th>
+                                    <th>Electricity</th>
+                                    <th>Other Charges</th>
+                                    <th>Total</th>
+                                    <th>Paid</th>
+                                    <th>Status</th>
+                                    <th>Due Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for bill in recent_bills %}
+                                <tr>
+                                    <td>{{ bill.month_year|date:"M Y" }}</td>
+                                    <td>₹{{ bill.rent_amount }}</td>
+                                    <td>₹{{ bill.electricity_amount }}</td>
+                                    <td>₹{{ bill.water_charges|add:bill.maintenance_charges|add:bill.other_charges }}</td>
+                                    <td><strong>₹{{ bill.total_amount }}</strong></td>
+                                    <td>₹{{ bill.paid_amount }}</td>
+                                    <td>
+                                        {% if bill.status == 'Paid' %}
+                                            <span class="badge bg-success">{{ bill.status }}</span>
+                                        {% elif bill.status == 'Unpaid' %}
+                                            <span class="badge bg-danger">{{ bill.status }}</span>
+                                        {% elif bill.status == 'Partially_Paid' %}
+                                            <span class="badge bg-warning">Partially Paid</span>
+                                        {% else %}
+                                            <span class="badge bg-dark">{{ bill.status }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ bill.due_date|date:"M d, Y" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted text-center">No bills available</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Issues -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5><i class="bi bi-bug"></i> My Recent Issues</h5>
+                <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#newIssueModal">
+                    <i class="bi bi-plus"></i> Report Issue
+                </button>
+            </div>
+            <div class="card-body">
+                {% if recent_issues %}
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Title</th>
+                                    <th>Category</th>
+                                    <th>Priority</th>
+                                    <th>Status</th>
+                                    <th>Created</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for issue in recent_issues %}
+                                <tr>
+                                    <td>{{ issue.title }}</td>
+                                    <td>{{ issue.get_category_display }}</td>
+                                    <td>
+                                        {% if issue.priority == 'urgent' %}
+                                            <span class="badge bg-danger">{{ issue.get_priority_display }}</span>
+                                        {% elif issue.priority == 'high' %}
+                                            <span class="badge bg-warning">{{ issue.get_priority_display }}</span>
+                                        {% else %}
+                                            <span class="badge bg-info">{{ issue.get_priority_display }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if issue.status == 'resolved' %}
+                                            <span class="badge bg-success">{{ issue.get_status_display }}</span>
+                                        {% elif issue.status == 'in_progress' %}
+                                            <span class="badge bg-warning">In Progress</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ issue.get_status_display }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ issue.created_at|date:"M d, Y" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted text-center">No issues reported</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- New Issue Modal -->
+<div class="modal fade" id="newIssueModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Report New Issue</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="#" id="issueForm">
+                <div class="modal-body">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="issueTitle" class="form-label">Title *</label>
+                        <input type="text" class="form-control" id="issueTitle" name="title" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="issueCategory" class="form-label">Category *</label>
+                        <select class="form-control" id="issueCategory" name="category" required>
+                            <option value="">Select Category</option>
+                            <option value="maintenance">Maintenance</option>
+                            <option value="electrical">Electrical</option>
+                            <option value="plumbing">Plumbing</option>
+                            <option value="cleaning">Cleaning</option>
+                            <option value="security">Security</option>
+                            <option value="internet">Internet</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="issuePriority" class="form-label">Priority *</label>
+                        <select class="form-control" id="issuePriority" name="priority" required>
+                            <option value="low">Low</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="high">High</option>
+                            <option value="urgent">Urgent</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="issueDescription" class="form-label">Description *</label>
+                        <textarea class="form-control" id="issueDescription" name="description" rows="4" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Report Issue</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

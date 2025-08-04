@@ -1,0 +1,246 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ pg.name }} - Dashboard{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2><i class="bi bi-speedometer2"></i> {{ pg.name }} Dashboard</h2>
+            <div>
+                <a href="{% url 'hostel:guest_check_in' pg.id %}" class="btn btn-success">
+                    <i class="bi bi-person-plus"></i> Check-in Guest
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Key Metrics -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>{{ occupancy_rate }}%</h4>
+                        <p class="mb-0">Occupancy Rate</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-pie-chart-fill fs-2"></i>
+                    </div>
+                </div>
+                <small>{{ occupied_rooms }}/{{ total_rooms }} rooms occupied</small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>₹{{ monthly_revenue|floatformat:0 }}</h4>
+                        <p class="mb-0">Monthly Revenue</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-currency-rupee fs-2"></i>
+                    </div>
+                </div>
+                <small>Current month collections</small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>₹{{ pending_dues|floatformat:0 }}</h4>
+                        <p class="mb-0">Pending Dues</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-exclamation-triangle-fill fs-2"></i>
+                    </div>
+                </div>
+                <small>Outstanding payments</small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card bg-danger text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>{{ open_issues_count }}</h4>
+                        <p class="mb-0">Open Issues</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-bug-fill fs-2"></i>
+                    </div>
+                </div>
+                <small>Pending resolution</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Active Guests -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5><i class="bi bi-people"></i> Active Guests ({{ active_guests.count }})</h5>
+                <a href="{% url 'hostel:guest_list' pg.id %}" class="btn btn-sm btn-outline-primary">View All</a>
+            </div>
+            <div class="card-body">
+                {% if active_guests %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Room</th>
+                                    <th>Rent</th>
+                                    <th>Check-in</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for guest in active_guests|slice:":5" %}
+                                <tr>
+                                    <td>
+                                        <a href="{% url 'hostel:guest_detail' pg.id guest.id %}" class="text-decoration-none">
+                                            {{ guest.user.get_full_name }}
+                                        </a>
+                                    </td>
+                                    <td>{{ guest.room.room_number }}</td>
+                                    <td>₹{{ guest.rent_amount }}</td>
+                                    <td>{{ guest.check_in_date|date:"M d, Y" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted text-center">No active guests</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Upcoming Checkouts -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="bi bi-calendar-event"></i> Upcoming Checkouts</h5>
+            </div>
+            <div class="card-body">
+                {% if upcoming_checkouts %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Room</th>
+                                    <th>Checkout Date</th>
+                                    <th>Days Left</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for guest in upcoming_checkouts %}
+                                <tr>
+                                    <td>
+                                        <a href="{% url 'hostel:guest_detail' pg.id guest.id %}" class="text-decoration-none">
+                                            {{ guest.user.get_full_name }}
+                                        </a>
+                                    </td>
+                                    <td>{{ guest.room.room_number }}</td>
+                                    <td>{{ guest.check_out_date|date:"M d, Y" }}</td>
+                                    <td>
+                                        {% with days_left=guest.check_out_date|timeuntil %}
+                                            <span class="badge bg-warning">{{ days_left }}</span>
+                                        {% endwith %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted text-center">No upcoming checkouts</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activities -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="bi bi-clock-history"></i> Recent Check-ins</h5>
+            </div>
+            <div class="card-body">
+                {% if recent_checkins %}
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Guest</th>
+                                    <th>Room</th>
+                                    <th>Rent</th>
+                                    <th>Check-in Date</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for guest in recent_checkins %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            {% if guest.profile_photo %}
+                                                <img src="{{ guest.profile_photo.url }}" alt="Profile" class="rounded-circle me-2" width="32" height="32">
+                                            {% else %}
+                                                <div class="bg-secondary rounded-circle me-2 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                                                    <i class="bi bi-person text-white"></i>
+                                                </div>
+                                            {% endif %}
+                                            <div>
+                                                <strong>{{ guest.user.get_full_name }}</strong><br>
+                                                <small class="text-muted">{{ guest.user.username }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>{{ guest.room.room_number }}</td>
+                                    <td>₹{{ guest.rent_amount }}</td>
+                                    <td>{{ guest.check_in_date|date:"M d, Y" }}</td>
+                                    <td>
+                                        {% if guest.is_active %}
+                                            <span class="badge bg-success">Active</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Checked Out</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'hostel:guest_detail' pg.id guest.id %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-eye"></i> View
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted text-center">No recent check-ins</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
