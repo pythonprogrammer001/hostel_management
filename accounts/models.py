@@ -35,3 +35,6 @@ class CustomUser(AbstractUser):
         return self.role == 'guest'
     
     class Meta:
+        db_table = 'accounts_customuser'
+        verbose_name = 'User'
+        verbose_name_plural = 'Users'
