@@ -1,6 +1,5 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
-from django.conf import settings
 
 
 class CustomUser(AbstractUser):
@@ -17,7 +16,7 @@ class CustomUser(AbstractUser):
     role = models.CharField(max_length=15, choices=ROLE_CHOICES, default='guest')
     phone = models.CharField(max_length=15, blank=True, null=True)
     address = models.TextField(blank=True, null=True)
-    pg = models.ForeignKey('hostel.PG', on_delete=models.CASCADE, null=True, blank=True)
+    pg = models.ForeignKey('hostel.PG', on_delete=models.CASCADE, null=True, blank=True, related_name='users')
     is_approved = models.BooleanField(default=False)  # For PG Admin approval
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
