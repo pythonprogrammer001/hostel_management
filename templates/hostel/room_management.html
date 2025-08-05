@@ -1,0 +1,492 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Room Management - {{ pg.name }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2><i class="bi bi-door-open"></i> Room Management</h2>
+            <div>
+                <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addRoomModal">
+                    <i class="bi bi-plus-circle"></i> Add Room
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Room Statistics -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>{{ rooms.count }}</h4>
+                        <p class="mb-0">Total Rooms</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-building fs-2"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>{{ rooms|length|sub:occupied_count }}</h4>
+                        <p class="mb-0">Available Rooms</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-door-open fs-2"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>{{ occupied_count|default:0 }}</h4>
+                        <p class="mb-0">Occupied Rooms</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-door-closed fs-2"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>{{ pg.get_occupancy_rate }}%</h4>
+                        <p class="mb-0">Occupancy Rate</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-pie-chart fs-2"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Room Grid View -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5><i class="bi bi-grid-3x3"></i> Room Layout</h5>
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-sm btn-outline-primary active" onclick="toggleView('grid')">
+                        <i class="bi bi-grid-3x3"></i> Grid
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="toggleView('list')">
+                        <i class="bi bi-list"></i> List
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Grid View -->
+                <div id="gridView">
+                    {% if rooms %}
+                        <div class="row">
+                            {% for room in rooms %}
+                            <div class="col-md-4 col-lg-3 mb-3">
+                                <div class="card room-card {% if room.get_current_occupants %}occupied{% else %}available{% endif %}">
+                                    <div class="card-body text-center">
+                                        <div class="room-icon mb-2">
+                                            {% if room.get_current_occupants %}
+                                                <i class="bi bi-door-closed fs-1 text-warning"></i>
+                                            {% else %}
+                                                <i class="bi bi-door-open fs-1 text-success"></i>
+                                            {% endif %}
+                                        </div>
+                                        
+                                        <h5 class="card-title">Room {{ room.room_number }}</h5>
+                                        
+                                        <div class="room-details">
+                                            <p class="mb-1">
+                                                <i class="bi bi-people"></i> 
+                                                Capacity: {{ room.capacity }}
+                                            </p>
+                                            <p class="mb-1">
+                                                <i class="bi bi-currency-rupee"></i> 
+                                                Rent: ₹{{ room.rent_amount }}
+                                            </p>
+                                            <p class="mb-2">
+                                                <i class="bi bi-lightning"></i> 
+                                                {{ room.get_meter_type_display }}
+                                            </p>
+                                        </div>
+                                        
+                                        {% with occupants=room.get_current_occupants %}
+                                            {% if occupants %}
+                                                <div class="occupants mb-2">
+                                                    <small class="text-muted">Current Occupants:</small>
+                                                    {% for occupant in occupants %}
+                                                        <div class="occupant-info">
+                                                            <a href="{% url 'hostel:guest_detail' pg.id occupant.id %}" class="text-decoration-none">
+                                                                <small>{{ occupant.user.get_full_name }}</small>
+                                                            </a>
+                                                        </div>
+                                                    {% endfor %}
+                                                </div>
+                                            {% else %}
+                                                <div class="mb-2">
+                                                    <span class="badge bg-success">Available</span>
+                                                </div>
+                                            {% endif %}
+                                        {% endwith %}
+                                        
+                                        <div class="room-actions">
+                                            <button class="btn btn-sm btn-outline-primary" onclick="editRoom({{ room.id }}, '{{ room.room_number }}', {{ room.capacity }}, {{ room.rent_amount }}, '{{ room.meter_type }}', {{ room.is_available|yesno:'true,false' }})">
+                                                <i class="bi bi-pencil"></i> Edit
+                                            </button>
+                                            {% if not room.get_current_occupants %}
+                                                <button class="btn btn-sm btn-outline-danger" onclick="deleteRoom({{ room.id }}, '{{ room.room_number }}')">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="bi bi-door-open fs-1 text-muted"></i>
+                            <p class="text-muted mt-3">No rooms added yet</p>
+                            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addRoomModal">
+                                <i class="bi bi-plus-circle"></i> Add First Room
+                            </button>
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <!-- List View (Hidden by default) -->
+                <div id="listView" style="display: none;">
+                    {% if rooms %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Room Number</th>
+                                        <th>Capacity</th>
+                                        <th>Rent Amount</th>
+                                        <th>Meter Type</th>
+                                        <th>Current Occupants</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for room in rooms %}
+                                    <tr>
+                                        <td><strong>{{ room.room_number }}</strong></td>
+                                        <td>{{ room.capacity }}</td>
+                                        <td>₹{{ room.rent_amount }}</td>
+                                        <td>{{ room.get_meter_type_display }}</td>
+                                        <td>
+                                            {% with occupants=room.get_current_occupants %}
+                                                {% if occupants %}
+                                                    {% for occupant in occupants %}
+                                                        <a href="{% url 'hostel:guest_detail' pg.id occupant.id %}" class="text-decoration-none">
+                                                            <span class="badge bg-primary">{{ occupant.user.get_full_name }}</span>
+                                                        </a>
+                                                        {% if not forloop.last %}<br>{% endif %}
+                                                    {% endfor %}
+                                                {% else %}
+                                                    <span class="text-muted">None</span>
+                                                {% endif %}
+                                            {% endwith %}
+                                        </td>
+                                        <td>
+                                            {% if room.get_current_occupants %}
+                                                <span class="badge bg-warning">Occupied</span>
+                                            {% else %}
+                                                <span class="badge bg-success">Available</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <button class="btn btn-sm btn-outline-primary" onclick="editRoom({{ room.id }}, '{{ room.room_number }}', {{ room.capacity }}, {{ room.rent_amount }}, '{{ room.meter_type }}', {{ room.is_available|yesno:'true,false' }})">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                                {% if not room.get_current_occupants %}
+                                                    <button class="btn btn-sm btn-outline-danger" onclick="deleteRoom({{ room.id }}, '{{ room.room_number }}')">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Room Modal -->
+<div class="modal fade" id="addRoomModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add New Room</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="#" id="addRoomForm">
+                <div class="modal-body">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="roomNumber" class="form-label">Room Number *</label>
+                        <input type="text" class="form-control" id="roomNumber" name="room_number" required>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="capacity" class="form-label">Capacity *</label>
+                            <input type="number" class="form-control" id="capacity" name="capacity" min="1" value="1" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="rentAmount" class="form-label">Rent Amount (₹) *</label>
+                            <input type="number" class="form-control" id="rentAmount" name="rent_amount" step="0.01" required>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="meterType" class="form-label">Meter Type</label>
+                        <select class="form-control" id="meterType" name="meter_type">
+                            <option value="manual">Manual</option>
+                            <option value="automatic">Automatic</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="isAvailable" name="is_available" checked>
+                        <label class="form-check-label" for="isAvailable">
+                            Available for booking
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Add Room</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Room Modal -->
+<div class="modal fade" id="editRoomModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Room</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="#" id="editRoomForm">
+                <div class="modal-body">
+                    {% csrf_token %}
+                    <input type="hidden" id="editRoomId" name="room_id">
+                    
+                    <div class="mb-3">
+                        <label for="editRoomNumber" class="form-label">Room Number *</label>
+                        <input type="text" class="form-control" id="editRoomNumber" name="room_number" required>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="editCapacity" class="form-label">Capacity *</label>
+                            <input type="number" class="form-control" id="editCapacity" name="capacity" min="1" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="editRentAmount" class="form-label">Rent Amount (₹) *</label>
+                            <input type="number" class="form-control" id="editRentAmount" name="rent_amount" step="0.01" required>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="editMeterType" class="form-label">Meter Type</label>
+                        <select class="form-control" id="editMeterType" name="meter_type">
+                            <option value="manual">Manual</option>
+                            <option value="automatic">Automatic</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="editIsAvailable" name="is_available">
+                        <label class="form-check-label" for="editIsAvailable">
+                            Available for booking
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Room</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteRoomModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Delete Room</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    Are you sure you want to delete <strong id="deleteRoomName"></strong>? This action cannot be undone.
+                </div>
+                <input type="hidden" id="deleteRoomId">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" onclick="confirmDeleteRoom()">Delete Room</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.room-card {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    border: 2px solid transparent;
+}
+
+.room-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.room-card.occupied {
+    border-color: #ffc107;
+    background-color: #fff8e1;
+}
+
+.room-card.available {
+    border-color: #198754;
+    background-color: #f0fff4;
+}
+
+.room-icon {
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.occupant-info {
+    margin-bottom: 2px;
+}
+
+.room-actions {
+    margin-top: 10px;
+}
+
+.room-actions .btn {
+    margin: 2px;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleView(viewType) {
+    if (viewType === 'grid') {
+        $('#gridView').show();
+        $('#listView').hide();
+        $('.btn-group button').removeClass('active');
+        $('.btn-group button:first').addClass('active');
+    } else {
+        $('#gridView').hide();
+        $('#listView').show();
+        $('.btn-group button').removeClass('active');
+        $('.btn-group button:last').addClass('active');
+    }
+}
+
+function editRoom(roomId, roomNumber, capacity, rentAmount, meterType, isAvailable) {
+    $('#editRoomId').val(roomId);
+    $('#editRoomNumber').val(roomNumber);
+    $('#editCapacity').val(capacity);
+    $('#editRentAmount').val(rentAmount);
+    $('#editMeterType').val(meterType);
+    $('#editIsAvailable').prop('checked', isAvailable);
+    $('#editRoomModal').modal('show');
+}
+
+function deleteRoom(roomId, roomNumber) {
+    $('#deleteRoomId').val(roomId);
+    $('#deleteRoomName').text('Room ' + roomNumber);
+    $('#deleteRoomModal').modal('show');
+}
+
+function confirmDeleteRoom() {
+    const roomId = $('#deleteRoomId').val();
+    
+    // This would need a corresponding view to handle room deletion
+    alert('Room deletion functionality would be implemented with a corresponding view.');
+    // After successful deletion, reload the page
+    // location.reload();
+}
+
+$(document).ready(function() {
+    // Handle add room form submission
+    $('#addRoomForm').on('submit', function(e) {
+        e.preventDefault();
+        
+        // This would need a corresponding view to handle room creation
+        alert('Add room functionality would be implemented with a corresponding view.');
+        // After successful creation, reload the page
+        // location.reload();
+    });
+    
+    // Handle edit room form submission
+    $('#editRoomForm').on('submit', function(e) {
+        e.preventDefault();
+        
+        // This would need a corresponding view to handle room updates
+        alert('Edit room functionality would be implemented with a corresponding view.');
+        // After successful update, reload the page
+        // location.reload();
+    });
+    
+    // Auto-generate room number suggestion
+    $('#roomNumber').on('focus', function() {
+        if (!$(this).val()) {
+            const roomCount = {{ rooms.count|default:0 }};
+            $(this).val(String(roomCount + 1).padStart(3, '0'));
+        }
+    });
+});
+</script>
+{% endblock %}

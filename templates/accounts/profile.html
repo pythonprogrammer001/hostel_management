@@ -1,0 +1,360 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Profile - {{ user.get_full_name|default:user.username }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2><i class="bi bi-person-circle"></i> My Profile</h2>
+            <div>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#editProfileModal">
+                    <i class="bi bi-pencil"></i> Edit Profile
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Profile Information -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                {% if user.is_guest and user.guestprofile.profile_photo %}
+                    <img src="{{ user.guestprofile.profile_photo.url }}" alt="Profile" class="rounded-circle mb-3" width="150" height="150" style="object-fit: cover;">
+                {% else %}
+                    <div class="bg-primary rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 150px; height: 150px;">
+                        <i class="bi bi-person fs-1 text-white"></i>
+                    </div>
+                {% endif %}
+                
+                <h4>{{ user.get_full_name|default:user.username }}</h4>
+                <p class="text-muted">{{ user.get_role_display }}</p>
+                
+                {% if user.is_pg_admin and user.owned_pg %}
+                    <div class="mt-3">
+                        <span class="badge bg-primary fs-6">{{ user.owned_pg.name }}</span>
+                    </div>
+                {% elif user.is_guest and user.pg %}
+                    <div class="mt-3">
+                        <span class="badge bg-success fs-6">{{ user.pg.name }}</span>
+                        {% if user.guestprofile.room %}
+                            <br><span class="badge bg-info mt-1">Room {{ user.guestprofile.room.room_number }}</span>
+                        {% endif %}
+                    </div>
+                {% endif %}
+                
+                <div class="mt-3">
+                    <small class="text-muted">Member since {{ user.date_joined|date:"M Y" }}</small>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Account Status -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6><i class="bi bi-shield-check"></i> Account Status</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span>Account Status:</span>
+                    {% if user.is_approved %}
+                        <span class="badge bg-success">Approved</span>
+                    {% else %}
+                        <span class="badge bg-warning">Pending Approval</span>
+                    {% endif %}
+                </div>
+                
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span>Account Active:</span>
+                    {% if user.is_active %}
+                        <span class="badge bg-success">Active</span>
+                    {% else %}
+                        <span class="badge bg-danger">Inactive</span>
+                    {% endif %}
+                </div>
+                
+                {% if user.is_pg_admin and user.owned_pg %}
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span>PG Status:</span>
+                        {% if user.owned_pg.is_active %}
+                            <span class="badge bg-success">Active</span>
+                        {% else %}
+                            <span class="badge bg-warning">Pending Activation</span>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Detailed Information -->
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="bi bi-info-circle"></i> Personal Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Username:</strong> {{ user.username }}</p>
+                        <p><strong>First Name:</strong> {{ user.first_name|default:"Not provided" }}</p>
+                        <p><strong>Last Name:</strong> {{ user.last_name|default:"Not provided" }}</p>
+                        <p><strong>Email:</strong> {{ user.email|default:"Not provided" }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Phone:</strong> {{ user.phone|default:"Not provided" }}</p>
+                        <p><strong>Role:</strong> {{ user.get_role_display }}</p>
+                        <p><strong>Joined:</strong> {{ user.date_joined|date:"M d, Y g:i A" }}</p>
+                        <p><strong>Last Login:</strong> {{ user.last_login|date:"M d, Y g:i A"|default:"Never" }}</p>
+                    </div>
+                </div>
+                
+                {% if user.address %}
+                    <div class="row">
+                        <div class="col-12">
+                            <p><strong>Address:</strong></p>
+                            <p class="text-muted">{{ user.address }}</p>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Role-specific Information -->
+        {% if user.is_pg_admin and user.owned_pg %}
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5><i class="bi bi-building"></i> PG Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>PG Name:</strong> {{ user.owned_pg.name }}</p>
+                            <p><strong>Contact Phone:</strong> {{ user.owned_pg.contact_phone }}</p>
+                            <p><strong>Contact Email:</strong> {{ user.owned_pg.contact_email }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Registration Date:</strong> {{ user.owned_pg.registration_date|date:"M d, Y" }}</p>
+                            <p><strong>Subscription Plan:</strong> {{ user.owned_pg.get_subscription_plan_display }}</p>
+                            <p><strong>Total Rooms:</strong> {{ user.owned_pg.room_set.count }}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-12">
+                            <p><strong>Address:</strong></p>
+                            <p class="text-muted">{{ user.owned_pg.address }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% elif user.is_guest and user.guestprofile %}
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5><i class="bi bi-house"></i> Guest Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Room:</strong> {{ user.guestprofile.room.room_number|default:"Not assigned" }}</p>
+                            <p><strong>Monthly Rent:</strong> ₹{{ user.guestprofile.rent_amount|default:"N/A" }}</p>
+                            <p><strong>Check-in Date:</strong> {{ user.guestprofile.check_in_date|date:"M d, Y"|default:"N/A" }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Emergency Contact:</strong> {{ user.guestprofile.emergency_contact_name|default:"Not provided" }}</p>
+                            <p><strong>Emergency Phone:</strong> {{ user.guestprofile.emergency_contact_phone|default:"Not provided" }}</p>
+                            <p><strong>ID Proof:</strong> {{ user.guestprofile.get_id_proof_type_display|default:"Not provided" }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+        
+        <!-- Security Settings -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5><i class="bi bi-shield-lock"></i> Security Settings</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Password:</strong> ••••••••</p>
+                        <button class="btn btn-outline-warning btn-sm" data-bs-toggle="modal" data-bs-target="#changePasswordModal">
+                            <i class="bi bi-key"></i> Change Password
+                        </button>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Two-Factor Authentication:</strong></p>
+                        <span class="badge bg-secondary">Not Enabled</span>
+                        <br><small class="text-muted">Coming soon...</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Profile Modal -->
+<div class="modal fade" id="editProfileModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Profile</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" enctype="multipart/form-data" id="editProfileForm">
+                <div class="modal-body">
+                    {% csrf_token %}
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="firstName" class="form-label">First Name</label>
+                            <input type="text" class="form-control" id="firstName" name="first_name" value="{{ user.first_name }}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="lastName" class="form-label">Last Name</label>
+                            <input type="text" class="form-control" id="lastName" name="last_name" value="{{ user.last_name }}">
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="email" name="email" value="{{ user.email }}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="phone" class="form-label">Phone</label>
+                            <input type="text" class="form-control" id="phone" name="phone" value="{{ user.phone }}">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="address" class="form-label">Address</label>
+                        <textarea class="form-control" id="address" name="address" rows="3">{{ user.address }}</textarea>
+                    </div>
+                    
+                    {% if user.is_guest and user.guestprofile %}
+                        <hr>
+                        <h6>Guest Information</h6>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="emergencyContactName" class="form-label">Emergency Contact Name</label>
+                                <input type="text" class="form-control" id="emergencyContactName" name="emergency_contact_name" value="{{ user.guestprofile.emergency_contact_name }}">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="emergencyContactPhone" class="form-label">Emergency Contact Phone</label>
+                                <input type="text" class="form-control" id="emergencyContactPhone" name="emergency_contact_phone" value="{{ user.guestprofile.emergency_contact_phone }}">
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="profilePhoto" class="form-label">Profile Photo</label>
+                            <input type="file" class="form-control" id="profilePhoto" name="profile_photo" accept="image/*">
+                            {% if user.guestprofile.profile_photo %}
+                                <div class="form-text">Current photo will be replaced if you upload a new one.</div>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Change Password Modal -->
+<div class="modal fade" id="changePasswordModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Change Password</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" id="changePasswordForm">
+                <div class="modal-body">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="currentPassword" class="form-label">Current Password *</label>
+                        <input type="password" class="form-control" id="currentPassword" name="current_password" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="newPassword" class="form-label">New Password *</label>
+                        <input type="password" class="form-control" id="newPassword" name="new_password" required>
+                        <div class="form-text">Password must be at least 8 characters long.</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="confirmPassword" class="form-label">Confirm New Password *</label>
+                        <input type="password" class="form-control" id="confirmPassword" name="confirm_password" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning">Change Password</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Handle profile edit form submission
+    $('#editProfileForm').on('submit', function(e) {
+        e.preventDefault();
+        
+        // This would need a corresponding view to handle profile updates
+        alert('Profile update functionality would be implemented with a corresponding view.');
+        // After successful update, reload the page
+        // location.reload();
+    });
+    
+    // Handle password change form submission
+    $('#changePasswordForm').on('submit', function(e) {
+        e.preventDefault();
+        
+        const newPassword = $('#newPassword').val();
+        const confirmPassword = $('#confirmPassword').val();
+        
+        if (newPassword !== confirmPassword) {
+            alert('New passwords do not match!');
+            return;
+        }
+        
+        if (newPassword.length < 8) {
+            alert('Password must be at least 8 characters long!');
+            return;
+        }
+        
+        // This would need a corresponding view to handle password changes
+        alert('Password change functionality would be implemented with a corresponding view.');
+        // After successful change, close modal and show success message
+        // $('#changePasswordModal').modal('hide');
+    });
+    
+    // Preview profile photo before upload
+    $('#profilePhoto').on('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                // You could show a preview here
+                console.log('Photo selected:', file.name);
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+});
+</script>
+{% endblock %}

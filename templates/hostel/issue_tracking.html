@@ -1,0 +1,560 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Issue Tracking - {{ pg.name }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2><i class="bi bi-exclamation-triangle"></i> Issue Tracking</h2>
+            <div>
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-outline-secondary" onclick="exportIssues('csv')">
+                        <i class="bi bi-file-earmark-spreadsheet"></i> Export CSV
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="exportIssues('pdf')">
+                        <i class="bi bi-file-earmark-pdf"></i> Export PDF
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Issue Statistics -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-danger text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>{{ issues|length }}</h4>
+                        <p class="mb-0">Total Issues</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-bug fs-2"></i>
+                    </div>
+                </div>
+                <small>All time</small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>{{ open_issues_count|default:0 }}</h4>
+                        <p class="mb-0">Open Issues</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-exclamation-circle fs-2"></i>
+                    </div>
+                </div>
+                <small>Needs attention</small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>{{ in_progress_count|default:0 }}</h4>
+                        <p class="mb-0">In Progress</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-gear fs-2"></i>
+                    </div>
+                </div>
+                <small>Being worked on</small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>{{ resolved_count|default:0 }}</h4>
+                        <p class="mb-0">Resolved</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-check-circle fs-2"></i>
+                    </div>
+                </div>
+                <small>This month</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="row mb-4">
+    <div class="col-md-8">
+        <form method="get" class="d-flex gap-3">
+            <div class="flex-grow-1">
+                <input type="text" name="search" class="form-control" placeholder="Search issues..." value="{{ search_query }}">
+            </div>
+            <div>
+                <select name="status" class="form-control" onchange="this.form.submit()">
+                    <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Status</option>
+                    <option value="open" {% if status_filter == 'open' %}selected{% endif %}>Open</option>
+                    <option value="in_progress" {% if status_filter == 'in_progress' %}selected{% endif %}>In Progress</option>
+                    <option value="resolved" {% if status_filter == 'resolved' %}selected{% endif %}>Resolved</option>
+                    <option value="closed" {% if status_filter == 'closed' %}selected{% endif %}>Closed</option>
+                </select>
+            </div>
+            <div>
+                <select name="priority" class="form-control" onchange="this.form.submit()">
+                    <option value="all" {% if priority_filter == 'all' %}selected{% endif %}>All Priority</option>
+                    <option value="urgent" {% if priority_filter == 'urgent' %}selected{% endif %}>Urgent</option>
+                    <option value="high" {% if priority_filter == 'high' %}selected{% endif %}>High</option>
+                    <option value="medium" {% if priority_filter == 'medium' %}selected{% endif %}>Medium</option>
+                    <option value="low" {% if priority_filter == 'low' %}selected{% endif %}>Low</option>
+                </select>
+            </div>
+            <div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-search"></i> Search
+                </button>
+            </div>
+        </form>
+    </div>
+    <div class="col-md-4 text-end">
+        <div class="btn-group" role="group">
+            <button type="button" class="btn btn-outline-primary" onclick="bulkAction('assign')">
+                <i class="bi bi-person-plus"></i> Bulk Assign
+            </button>
+            <button type="button" class="btn btn-outline-success" onclick="bulkAction('resolve')">
+                <i class="bi bi-check-all"></i> Bulk Resolve
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Issues Table -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5>
+                    Issues 
+                    {% if status_filter != 'all' %}
+                        - {{ status_filter|title }}
+                    {% endif %}
+                    ({{ issues.count }})
+                </h5>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                    <label class="form-check-label" for="selectAll">
+                        Select All
+                    </label>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if issues %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th width="30">
+                                        <input type="checkbox" id="masterCheckbox" onchange="toggleSelectAll()">
+                                    </th>
+                                    <th>Issue</th>
+                                    <th>Guest</th>
+                                    <th>Category</th>
+                                    <th>Priority</th>
+                                    <th>Status</th>
+                                    <th>Created</th>
+                                    <th>Assigned To</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for issue in issues %}
+                                <tr>
+                                    <td>
+                                        <input type="checkbox" class="issue-checkbox" value="{{ issue.id }}">
+                                    </td>
+                                    <td>
+                                        <div>
+                                            <strong>{{ issue.title }}</strong>
+                                            {% if issue.description %}
+                                                <br><small class="text-muted">{{ issue.description|truncatewords:15 }}</small>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            {% if issue.guest.profile_photo %}
+                                                <img src="{{ issue.guest.profile_photo.url }}" alt="Profile" class="rounded-circle me-2" width="32" height="32" style="object-fit: cover;">
+                                            {% else %}
+                                                <div class="bg-secondary rounded-circle me-2 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                                                    <i class="bi bi-person text-white"></i>
+                                                </div>
+                                            {% endif %}
+                                            <div>
+                                                <a href="{% url 'hostel:guest_detail' pg.id issue.guest.id %}" class="text-decoration-none">
+                                                    {{ issue.guest.user.get_full_name }}
+                                                </a>
+                                                <br><small class="text-muted">Room {{ issue.guest.room.room_number }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ issue.get_category_display }}</span>
+                                    </td>
+                                    <td>
+                                        {% if issue.priority == 'urgent' %}
+                                            <span class="badge bg-danger">{{ issue.get_priority_display }}</span>
+                                        {% elif issue.priority == 'high' %}
+                                            <span class="badge bg-warning">{{ issue.get_priority_display }}</span>
+                                        {% elif issue.priority == 'medium' %}
+                                            <span class="badge bg-info">{{ issue.get_priority_display }}</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ issue.get_priority_display }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if issue.status == 'open' %}
+                                            <span class="badge bg-danger">Open</span>
+                                        {% elif issue.status == 'in_progress' %}
+                                            <span class="badge bg-warning">In Progress</span>
+                                        {% elif issue.status == 'resolved' %}
+                                            <span class="badge bg-success">Resolved</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Closed</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div>
+                                            {{ issue.created_at|date:"M d, Y" }}
+                                            <br><small class="text-muted">{{ issue.created_at|timesince }} ago</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if issue.assigned_to %}
+                                            <span class="badge bg-primary">{{ issue.assigned_to.get_full_name }}</span>
+                                        {% else %}
+                                            <span class="text-muted">Unassigned</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <button class="btn btn-sm btn-outline-primary" onclick="viewIssue({{ issue.id }}, '{{ issue.title|escapejs }}', '{{ issue.description|escapejs }}', '{{ issue.status }}', '{{ issue.resolution_notes|escapejs }}')" title="View Details">
+                                                <i class="bi bi-eye"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-success" onclick="updateIssueStatus({{ issue.id }}, '{{ issue.title|escapejs }}', '{{ issue.status }}')" title="Update Status">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                            {% if issue.status != 'resolved' and issue.status != 'closed' %}
+                                                <button class="btn btn-sm btn-outline-warning" onclick="assignIssue({{ issue.id }}, '{{ issue.title|escapejs }}')" title="Assign">
+                                                    <i class="bi bi-person-plus"></i>
+                                                </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Pagination would go here if needed -->
+                    {% if issues.count > 50 %}
+                        <nav aria-label="Issue pagination">
+                            <ul class="pagination justify-content-center">
+                                <!-- Pagination links would be implemented here -->
+                            </ul>
+                        </nav>
+                    {% endif %}
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-check-circle fs-1 text-success"></i>
+                        <p class="text-muted mt-3">
+                            {% if status_filter != 'all' %}
+                                No {{ status_filter }} issues found
+                            {% else %}
+                                No issues reported yet
+                            {% endif %}
+                        </p>
+                        {% if status_filter == 'all' %}
+                            <p class="text-muted">Great! Your guests haven't reported any issues.</p>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- View Issue Modal -->
+<div class="modal fade" id="viewIssueModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Issue Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h6>Title</h6>
+                        <p id="viewIssueTitle"></p>
+                        
+                        <h6>Description</h6>
+                        <p id="viewIssueDescription"></p>
+                        
+                        <h6>Resolution Notes</h6>
+                        <p id="viewIssueResolution" class="text-muted"></p>
+                    </div>
+                    <div class="col-md-4">
+                        <h6>Status</h6>
+                        <p><span id="viewIssueStatus" class="badge"></span></p>
+                        
+                        <h6>Priority</h6>
+                        <p><span id="viewIssuePriority" class="badge"></span></p>
+                        
+                        <h6>Category</h6>
+                        <p><span id="viewIssueCategory" class="badge bg-secondary"></span></p>
+                        
+                        <h6>Assigned To</h6>
+                        <p id="viewIssueAssigned" class="text-muted">Unassigned</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="editFromView()">Edit Issue</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Update Issue Status Modal -->
+<div class="modal fade" id="updateIssueModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Update Issue Status</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="updateIssueForm">
+                    {% csrf_token %}
+                    <input type="hidden" id="updateIssueId" name="issue_id">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Issue Title</label>
+                        <input type="text" class="form-control" id="updateIssueTitle" readonly>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="updateIssueStatus" class="form-label">Status *</label>
+                        <select class="form-control" id="updateIssueStatus" name="status" required>
+                            <option value="open">Open</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="resolved">Resolved</option>
+                            <option value="closed">Closed</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="updateResolutionNotes" class="form-label">Resolution Notes</label>
+                        <textarea class="form-control" id="updateResolutionNotes" name="resolution_notes" rows="4" placeholder="Add notes about the resolution or progress..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="submitIssueUpdate()">Update Status</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Assign Issue Modal -->
+<div class="modal fade" id="assignIssueModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Assign Issue</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="assignIssueForm">
+                    {% csrf_token %}
+                    <input type="hidden" id="assignIssueId" name="issue_id">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Issue Title</label>
+                        <input type="text" class="form-control" id="assignIssueTitle" readonly>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="assignTo" class="form-label">Assign To *</label>
+                        <select class="form-control" id="assignTo" name="assigned_to" required>
+                            <option value="">Select Person</option>
+                            <option value="{{ user.id }}">{{ user.get_full_name }} (Me)</option>
+                            <!-- Add other staff members here -->
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="assignNotes" class="form-label">Assignment Notes</label>
+                        <textarea class="form-control" id="assignNotes" name="notes" rows="3" placeholder="Add any notes for the assignee..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="submitIssueAssignment()">Assign Issue</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentIssueId = null;
+
+function viewIssue(issueId, title, description, status, resolutionNotes) {
+    currentIssueId = issueId;
+    $('#viewIssueTitle').text(title);
+    $('#viewIssueDescription').text(description || 'No description provided');
+    $('#viewIssueResolution').text(resolutionNotes || 'No resolution notes yet');
+    
+    // Update status badge
+    const statusBadge = $('#viewIssueStatus');
+    statusBadge.removeClass().addClass('badge');
+    if (status === 'open') {
+        statusBadge.addClass('bg-danger').text('Open');
+    } else if (status === 'in_progress') {
+        statusBadge.addClass('bg-warning').text('In Progress');
+    } else if (status === 'resolved') {
+        statusBadge.addClass('bg-success').text('Resolved');
+    } else {
+        statusBadge.addClass('bg-secondary').text('Closed');
+    }
+    
+    $('#viewIssueModal').modal('show');
+}
+
+function updateIssueStatus(issueId, title, currentStatus) {
+    $('#updateIssueId').val(issueId);
+    $('#updateIssueTitle').val(title);
+    $('#updateIssueStatus').val(currentStatus);
+    $('#updateIssueModal').modal('show');
+}
+
+function assignIssue(issueId, title) {
+    $('#assignIssueId').val(issueId);
+    $('#assignIssueTitle').val(title);
+    $('#assignIssueModal').modal('show');
+}
+
+function submitIssueUpdate() {
+    const issueId = $('#updateIssueId').val();
+    const status = $('#updateIssueStatus').val();
+    const notes = $('#updateResolutionNotes').val();
+    
+    $.post(`{% url 'hostel:update_issue_status' pg.id 0 %}`.replace('0', issueId), {
+        'status': status,
+        'resolution_notes': notes,
+        'csrfmiddlewaretoken': $('[name=csrfmiddlewaretoken]').val()
+    }, function(data) {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error updating issue: ' + data.error);
+        }
+    });
+}
+
+function submitIssueAssignment() {
+    const issueId = $('#assignIssueId').val();
+    const assignedTo = $('#assignTo').val();
+    const notes = $('#assignNotes').val();
+    
+    // This would need a corresponding view to handle issue assignment
+    alert('Issue assignment functionality would be implemented with a corresponding view.');
+    // After successful assignment, reload the page
+    // location.reload();
+}
+
+function editFromView() {
+    $('#viewIssueModal').modal('hide');
+    updateIssueStatus(currentIssueId, $('#viewIssueTitle').text(), 'open');
+}
+
+function toggleSelectAll() {
+    const masterCheckbox = $('#masterCheckbox');
+    const checkboxes = $('.issue-checkbox');
+    
+    if (masterCheckbox.is(':checked')) {
+        checkboxes.prop('checked', true);
+    } else {
+        checkboxes.prop('checked', false);
+    }
+    
+    updateBulkActionButtons();
+}
+
+function updateBulkActionButtons() {
+    const selectedCount = $('.issue-checkbox:checked').length;
+    const bulkButtons = $('.btn-group button');
+    
+    if (selectedCount > 0) {
+        bulkButtons.prop('disabled', false);
+    } else {
+        bulkButtons.prop('disabled', true);
+    }
+}
+
+function bulkAction(action) {
+    const selectedIssues = $('.issue-checkbox:checked').map(function() {
+        return $(this).val();
+    }).get();
+    
+    if (selectedIssues.length === 0) {
+        alert('Please select at least one issue.');
+        return;
+    }
+    
+    if (action === 'assign') {
+        alert('Bulk assign functionality would be implemented.');
+    } else if (action === 'resolve') {
+        if (confirm(`Are you sure you want to resolve ${selectedIssues.length} selected issues?`)) {
+            alert('Bulk resolve functionality would be implemented.');
+        }
+    }
+}
+
+function exportIssues(format) {
+    const currentUrl = new URL(window.location);
+    currentUrl.searchParams.set('export', format);
+    window.open(currentUrl.toString(), '_blank');
+}
+
+$(document).ready(function() {
+    // Update bulk action buttons when checkboxes change
+    $('.issue-checkbox').on('change', updateBulkActionButtons);
+    
+    // Initially disable bulk action buttons
+    updateBulkActionButtons();
+    
+    // Auto-submit search form on Enter key
+    $('input[name="search"]').on('keypress', function(e) {
+        if (e.which === 13) {
+            $(this).closest('form').submit();
+        }
+    });
+});
+</script>
+{% endblock %}

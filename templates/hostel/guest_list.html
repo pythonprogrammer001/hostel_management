@@ -1,0 +1,423 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Guests - {{ pg.name }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2><i class="bi bi-people"></i> Guest Management</h2>
+            <div>
+                <a href="{% url 'hostel:guest_check_in' pg.id %}" class="btn btn-success">
+                    <i class="bi bi-person-plus"></i> Check-in New Guest
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="row mb-4">
+    <div class="col-md-8">
+        <form method="get" class="d-flex gap-3">
+            <div class="flex-grow-1">
+                <input type="text" name="search" class="form-control" placeholder="Search by name, username, or room number..." value="{{ search_query }}">
+            </div>
+            <div>
+                <select name="status" class="form-control" onchange="this.form.submit()">
+                    <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active Guests</option>
+                    <option value="checked_out" {% if status_filter == 'checked_out' %}selected{% endif %}>Checked Out</option>
+                    <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Guests</option>
+                </select>
+            </div>
+            <div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-search"></i> Search
+                </button>
+            </div>
+        </form>
+    </div>
+    <div class="col-md-4 text-end">
+        <div class="btn-group" role="group">
+            <button type="button" class="btn btn-outline-secondary" onclick="exportGuests('csv')">
+                <i class="bi bi-file-earmark-spreadsheet"></i> Export CSV
+            </button>
+            <button type="button" class="btn btn-outline-secondary" onclick="exportGuests('pdf')">
+                <i class="bi bi-file-earmark-pdf"></i> Export PDF
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Guest Statistics -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>{{ guests.count }}</h4>
+                        <p class="mb-0">
+                            {% if status_filter == 'active' %}
+                                Active Guests
+                            {% elif status_filter == 'checked_out' %}
+                                Checked Out
+                            {% else %}
+                                Total Guests
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-people fs-2"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>₹{{ guests|length|mul:5000|floatformat:0 }}</h4>
+                        <p class="mb-0">Est. Monthly Revenue</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-currency-rupee fs-2"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>{{ pg.room_set.filter.is_available.count }}</h4>
+                        <p class="mb-0">Available Rooms</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-door-open fs-2"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>{{ pg.get_occupancy_rate }}%</h4>
+                        <p class="mb-0">Occupancy Rate</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-pie-chart fs-2"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Guests Table -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5>
+                    {% if status_filter == 'active' %}
+                        Active Guests
+                    {% elif status_filter == 'checked_out' %}
+                        Checked Out Guests
+                    {% else %}
+                        All Guests
+                    {% endif %}
+                    ({{ guests.count }})
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if guests %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Guest</th>
+                                    <th>Room</th>
+                                    <th>Rent</th>
+                                    <th>Check-in Date</th>
+                                    {% if status_filter == 'checked_out' or status_filter == 'all' %}
+                                        <th>Check-out Date</th>
+                                    {% endif %}
+                                    <th>Contact</th>
+                                    <th>Status</th>
+                                    <th>Pending Bills</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for guest in guests %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            {% if guest.profile_photo %}
+                                                <img src="{{ guest.profile_photo.url }}" alt="Profile" class="rounded-circle me-2" width="40" height="40" style="object-fit: cover;">
+                                            {% else %}
+                                                <div class="bg-secondary rounded-circle me-2 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                                    <i class="bi bi-person text-white"></i>
+                                                </div>
+                                            {% endif %}
+                                            <div>
+                                                <strong>{{ guest.user.get_full_name }}</strong><br>
+                                                <small class="text-muted">{{ guest.user.username }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if guest.room %}
+                                            <span class="badge bg-primary">{{ guest.room.room_number }}</span>
+                                        {% else %}
+                                            <span class="text-muted">No room assigned</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>₹{{ guest.rent_amount }}</td>
+                                    <td>{{ guest.check_in_date|date:"M d, Y" }}</td>
+                                    {% if status_filter == 'checked_out' or status_filter == 'all' %}
+                                        <td>
+                                            {% if guest.check_out_date %}
+                                                {{ guest.check_out_date|date:"M d, Y" }}
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                    {% endif %}
+                                    <td>
+                                        <div>
+                                            <i class="bi bi-envelope"></i> {{ guest.user.email|truncatechars:20 }}<br>
+                                            <i class="bi bi-telephone"></i> {{ guest.user.phone|default:"Not provided" }}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if guest.is_active %}
+                                            <span class="badge bg-success">Active</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Checked Out</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% with pending_bills=guest.get_pending_bills %}
+                                            {% if pending_bills %}
+                                                <span class="badge bg-danger">{{ pending_bills.count }} Bills</span><br>
+                                                <small class="text-danger">₹{{ guest.get_total_pending_amount }}</small>
+                                            {% else %}
+                                                <span class="badge bg-success">All Clear</span>
+                                            {% endif %}
+                                        {% endwith %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{% url 'hostel:guest_detail' pg.id guest.id %}" class="btn btn-sm btn-outline-primary" title="View Details">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                            {% if guest.is_active %}
+                                                <button class="btn btn-sm btn-outline-warning" onclick="initiateCheckout({{ guest.id }}, '{{ guest.user.get_full_name }}')" title="Check Out">
+                                                    <i class="bi bi-box-arrow-right"></i>
+                                                </button>
+                                            {% endif %}
+                                            <button class="btn btn-sm btn-outline-info" onclick="sendMessage({{ guest.id }}, '{{ guest.user.get_full_name }}')" title="Send Message">
+                                                <i class="bi bi-chat"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Pagination would go here if needed -->
+                    {% if guests.count > 50 %}
+                        <nav aria-label="Guest pagination">
+                            <ul class="pagination justify-content-center">
+                                <!-- Pagination links would be implemented here -->
+                            </ul>
+                        </nav>
+                    {% endif %}
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-people fs-1 text-muted"></i>
+                        <p class="text-muted mt-3">
+                            {% if search_query %}
+                                No guests found matching "{{ search_query }}"
+                            {% else %}
+                                No guests found
+                            {% endif %}
+                        </p>
+                        {% if status_filter == 'active' %}
+                            <a href="{% url 'hostel:guest_check_in' pg.id %}" class="btn btn-primary">
+                                <i class="bi bi-person-plus"></i> Check-in First Guest
+                            </a>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Checkout Modal -->
+<div class="modal fade" id="quickCheckoutModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Quick Check Out</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    Are you sure you want to check out <strong id="checkoutGuestName"></strong>?
+                </div>
+                
+                <form id="quickCheckoutForm">
+                    {% csrf_token %}
+                    <input type="hidden" id="checkoutGuestId" name="guest_id">
+                    
+                    <div class="mb-3">
+                        <label for="quickCheckoutDate" class="form-label">Checkout Date *</label>
+                        <input type="date" class="form-control" id="quickCheckoutDate" name="checkout_date" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="quickCheckoutNotes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="quickCheckoutNotes" name="notes" rows="2" placeholder="Optional checkout notes..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-warning" onclick="submitQuickCheckout()">Check Out</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Send Message Modal -->
+<div class="modal fade" id="messageModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Send Message</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="messageForm">
+                    {% csrf_token %}
+                    <input type="hidden" id="messageGuestId" name="guest_id">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">To</label>
+                        <input type="text" class="form-control" id="messageGuestName" readonly>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="messageSubject" class="form-label">Subject *</label>
+                        <input type="text" class="form-control" id="messageSubject" name="subject" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="messageContent" class="form-label">Message *</label>
+                        <textarea class="form-control" id="messageContent" name="message" rows="4" required></textarea>
+                    </div>
+                    
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="sendEmail" name="send_email" checked>
+                        <label class="form-check-label" for="sendEmail">
+                            Send via email
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="submitMessage()">Send Message</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function initiateCheckout(guestId, guestName) {
+    $('#checkoutGuestId').val(guestId);
+    $('#checkoutGuestName').text(guestName);
+    
+    // Set today's date as default
+    const today = new Date().toISOString().split('T')[0];
+    $('#quickCheckoutDate').val(today);
+    
+    $('#quickCheckoutModal').modal('show');
+}
+
+function submitQuickCheckout() {
+    const guestId = $('#checkoutGuestId').val();
+    const checkoutDate = $('#quickCheckoutDate').val();
+    const notes = $('#quickCheckoutNotes').val();
+    
+    // This would need a corresponding view to handle guest checkout
+    alert('Quick checkout functionality would be implemented with a corresponding view.');
+    // After successful checkout, reload the page or redirect
+    // location.reload();
+}
+
+function sendMessage(guestId, guestName) {
+    $('#messageGuestId').val(guestId);
+    $('#messageGuestName').val(guestName);
+    $('#messageModal').modal('show');
+}
+
+function submitMessage() {
+    const guestId = $('#messageGuestId').val();
+    const subject = $('#messageSubject').val();
+    const message = $('#messageContent').val();
+    const sendEmail = $('#sendEmail').is(':checked');
+    
+    // This would need a corresponding view to handle messaging
+    alert('Message functionality would be implemented with a corresponding view.');
+    // After successful send, close modal and show success message
+    // $('#messageModal').modal('hide');
+}
+
+function exportGuests(format) {
+    const currentUrl = new URL(window.location);
+    currentUrl.searchParams.set('export', format);
+    window.open(currentUrl.toString(), '_blank');
+}
+
+$(document).ready(function() {
+    // Auto-submit search form on Enter key
+    $('input[name="search"]').on('keypress', function(e) {
+        if (e.which === 13) {
+            $(this).closest('form').submit();
+        }
+    });
+    
+    // Clear search functionality
+    if ($('input[name="search"]').val()) {
+        $('input[name="search"]').after('<button type="button" class="btn btn-outline-secondary ms-2" onclick="clearSearch()"><i class="bi bi-x"></i></button>');
+    }
+});
+
+function clearSearch() {
+    $('input[name="search"]').val('');
+    $('select[name="status"]').val('active');
+    $('form').submit();
+}
+</script>
+{% endblock %}

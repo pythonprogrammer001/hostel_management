@@ -1,0 +1,640 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ guest.user.get_full_name }} - {{ pg.name }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2><i class="bi bi-person"></i> {{ guest.user.get_full_name }}</h2>
+            <div>
+                <a href="{% url 'hostel:guest_list' pg.id %}" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to Guests
+                </a>
+                <button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#checkoutModal">
+                    <i class="bi bi-box-arrow-right"></i> Check Out
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Guest Profile Card -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                {% if guest.profile_photo %}
+                    <img src="{{ guest.profile_photo.url }}" alt="Profile" class="rounded-circle mb-3" width="150" height="150" style="object-fit: cover;">
+                {% else %}
+                    <div class="bg-secondary rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 150px; height: 150px;">
+                        <i class="bi bi-person fs-1 text-white"></i>
+                    </div>
+                {% endif %}
+                <h4>{{ guest.user.get_full_name }}</h4>
+                <p class="text-muted">{{ guest.user.username }}</p>
+                
+                <div class="row text-center mt-3">
+                    <div class="col-6">
+                        <strong>Room</strong><br>
+                        <span class="badge bg-primary fs-6">{{ guest.room.room_number }}</span>
+                    </div>
+                    <div class="col-6">
+                        <strong>Monthly Rent</strong><br>
+                        <span class="text-success fs-5">₹{{ guest.rent_amount }}</span>
+                    </div>
+                </div>
+                
+                <div class="row text-center mt-3">
+                    <div class="col-6">
+                        <strong>Check-in</strong><br>
+                        <small>{{ guest.check_in_date|date:"M d, Y" }}</small>
+                    </div>
+                    <div class="col-6">
+                        <strong>Status</strong><br>
+                        {% if guest.is_active %}
+                            <span class="badge bg-success">Active</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Checked Out</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="bi bi-info-circle"></i> Personal Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Email:</strong> {{ guest.user.email }}</p>
+                        <p><strong>Phone:</strong> {{ guest.user.phone|default:"Not provided" }}</p>
+                        <p><strong>Address:</strong> {{ guest.user.address|default:"Not provided" }}</p>
+                        <p><strong>Emergency Contact:</strong> {{ guest.emergency_contact_name }}</p>
+                        <p><strong>Emergency Phone:</strong> {{ guest.emergency_contact_phone }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>ID Proof Type:</strong> {{ guest.get_id_proof_type_display }}</p>
+                        <p><strong>ID Proof Number:</strong> {{ guest.id_proof_number }}</p>
+                        {% if guest.id_proof_document %}
+                            <p><strong>ID Document:</strong> 
+                                <a href="{{ guest.id_proof_document.url }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-file-earmark"></i> View Document
+                                </a>
+                            </p>
+                        {% endif %}
+                        <p><strong>Joined:</strong> {{ guest.created_at|date:"M d, Y" }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Security Deposit -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="bi bi-shield-check"></i> Security Deposit</h5>
+            </div>
+            <div class="card-body">
+                {% if security_deposit %}
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h4>₹{{ security_deposit.amount }}</h4>
+                            <p class="mb-0">
+                                Status: 
+                                {% if security_deposit.status == 'Paid' %}
+                                    <span class="badge bg-success">{{ security_deposit.status }}</span>
+                                {% elif security_deposit.status == 'Pending' %}
+                                    <span class="badge bg-warning">{{ security_deposit.status }}</span>
+                                {% elif security_deposit.status == 'Refunded' %}
+                                    <span class="badge bg-info">{{ security_deposit.status }}</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ security_deposit.status }}</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div>
+                            <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#depositModal">
+                                <i class="bi bi-pencil"></i> Update
+                            </button>
+                        </div>
+                    </div>
+                    {% if security_deposit.paid_date %}
+                        <small class="text-muted">Paid on: {{ security_deposit.paid_date|date:"M d, Y" }}</small>
+                    {% endif %}
+                    {% if security_deposit.notes %}
+                        <p class="mt-2"><strong>Notes:</strong> {{ security_deposit.notes }}</p>
+                    {% endif %}
+                {% else %}
+                    <p class="text-muted">No security deposit information available.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="bi bi-clock-history"></i> Stay Duration</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4>
+                            {% if guest.is_active %}
+                                {{ guest.check_in_date|timesince }}
+                            {% else %}
+                                {% with days=guest.check_out_date|timeuntil:guest.check_in_date %}
+                                    {{ days }}
+                                {% endwith %}
+                            {% endif %}
+                        </h4>
+                        <p class="mb-0">
+                            {% if guest.is_active %}
+                                Current stay duration
+                            {% else %}
+                                Total stay duration
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div>
+                        <i class="bi bi-calendar-range fs-2 text-primary"></i>
+                    </div>
+                </div>
+                {% if guest.check_out_date %}
+                    <small class="text-muted">Checked out on: {{ guest.check_out_date|date:"M d, Y" }}</small>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bills and History Tabs -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <ul class="nav nav-tabs card-header-tabs" id="guestTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="bills-tab" data-bs-toggle="tab" data-bs-target="#bills" type="button" role="tab">
+                            <i class="bi bi-receipt"></i> Bills ({{ bills.count }})
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#history" type="button" role="tab">
+                            <i class="bi bi-clock-history"></i> History ({{ history.count }})
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="issues-tab" data-bs-toggle="tab" data-bs-target="#issues" type="button" role="tab">
+                            <i class="bi bi-bug"></i> Issues ({{ issues.count }})
+                        </button>
+                    </li>
+                </ul>
+            </div>
+            <div class="card-body">
+                <div class="tab-content" id="guestTabsContent">
+                    <!-- Bills Tab -->
+                    <div class="tab-pane fade show active" id="bills" role="tabpanel">
+                        {% if bills %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Month</th>
+                                            <th>Rent</th>
+                                            <th>Electricity</th>
+                                            <th>Other Charges</th>
+                                            <th>Total</th>
+                                            <th>Paid</th>
+                                            <th>Balance</th>
+                                            <th>Status</th>
+                                            <th>Due Date</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for bill in bills %}
+                                        <tr>
+                                            <td>{{ bill.month_year|date:"M Y" }}</td>
+                                            <td>₹{{ bill.rent_amount }}</td>
+                                            <td>₹{{ bill.electricity_amount }}</td>
+                                            <td>₹{{ bill.water_charges|add:bill.maintenance_charges|add:bill.other_charges }}</td>
+                                            <td><strong>₹{{ bill.total_amount }}</strong></td>
+                                            <td>₹{{ bill.paid_amount }}</td>
+                                            <td>
+                                                {% if bill.get_balance_amount > 0 %}
+                                                    <span class="text-danger">₹{{ bill.get_balance_amount }}</span>
+                                                {% else %}
+                                                    <span class="text-success">₹0</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if bill.status == 'Paid' %}
+                                                    <span class="badge bg-success">{{ bill.status }}</span>
+                                                {% elif bill.status == 'Unpaid' %}
+                                                    <span class="badge bg-danger">{{ bill.status }}</span>
+                                                {% elif bill.status == 'Partially_Paid' %}
+                                                    <span class="badge bg-warning">Partially Paid</span>
+                                                {% else %}
+                                                    <span class="badge bg-dark">{{ bill.status }}</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ bill.due_date|date:"M d, Y" }}</td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-primary" onclick="updatePayment({{ bill.id }}, '{{ guest.user.get_full_name }}', {{ bill.total_amount }}, {{ bill.paid_amount }})">
+                                                    <i class="bi bi-currency-rupee"></i> Update
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <p class="text-muted text-center">No bills found for this guest.</p>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- History Tab -->
+                    <div class="tab-pane fade" id="history" role="tabpanel">
+                        {% if history %}
+                            <div class="timeline">
+                                {% for record in history %}
+                                <div class="timeline-item">
+                                    <div class="timeline-marker bg-primary"></div>
+                                    <div class="timeline-content">
+                                        <h6>{{ record.get_reason_display }}</h6>
+                                        <p class="mb-1">
+                                            <strong>Room:</strong> {{ record.room.room_number }} | 
+                                            <strong>Rent:</strong> ₹{{ record.rent_at_the_time }}
+                                        </p>
+                                        <p class="mb-1">
+                                            <strong>Period:</strong> {{ record.from_date|date:"M d, Y" }} - {{ record.to_date|date:"M d, Y" }}
+                                        </p>
+                                        {% if record.notes %}
+                                            <p class="text-muted">{{ record.notes }}</p>
+                                        {% endif %}
+                                        <small class="text-muted">{{ record.created_at|date:"M d, Y g:i A" }}</small>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="text-muted text-center">No history records found.</p>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Issues Tab -->
+                    <div class="tab-pane fade" id="issues" role="tabpanel">
+                        {% if issues %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Title</th>
+                                            <th>Category</th>
+                                            <th>Priority</th>
+                                            <th>Status</th>
+                                            <th>Created</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for issue in issues %}
+                                        <tr>
+                                            <td>
+                                                <strong>{{ issue.title }}</strong><br>
+                                                <small class="text-muted">{{ issue.description|truncatewords:10 }}</small>
+                                            </td>
+                                            <td>{{ issue.get_category_display }}</td>
+                                            <td>
+                                                {% if issue.priority == 'urgent' %}
+                                                    <span class="badge bg-danger">{{ issue.get_priority_display }}</span>
+                                                {% elif issue.priority == 'high' %}
+                                                    <span class="badge bg-warning">{{ issue.get_priority_display }}</span>
+                                                {% else %}
+                                                    <span class="badge bg-info">{{ issue.get_priority_display }}</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if issue.status == 'resolved' %}
+                                                    <span class="badge bg-success">{{ issue.get_status_display }}</span>
+                                                {% elif issue.status == 'in_progress' %}
+                                                    <span class="badge bg-warning">In Progress</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">{{ issue.get_status_display }}</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ issue.created_at|date:"M d, Y" }}</td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-primary" onclick="updateIssueStatus({{ issue.id }}, '{{ issue.title }}', '{{ issue.status }}')">
+                                                    <i class="bi bi-pencil"></i> Update
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <p class="text-muted text-center">No issues reported by this guest.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Update Payment Modal -->
+<div class="modal fade" id="updatePaymentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Update Payment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="paymentForm">
+                    {% csrf_token %}
+                    <input type="hidden" id="billId" name="bill_id">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Guest Name</label>
+                        <input type="text" class="form-control" id="guestName" readonly>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Total Amount</label>
+                            <input type="text" class="form-control" id="totalAmount" readonly>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Current Paid</label>
+                            <input type="text" class="form-control" id="currentPaid" readonly>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="paidAmount" class="form-label">Paid Amount *</label>
+                        <input type="number" class="form-control" id="paidAmount" name="paid_amount" step="0.01" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="paymentMethod" class="form-label">Payment Method</label>
+                        <select class="form-control" id="paymentMethod" name="payment_method">
+                            <option value="cash">Cash</option>
+                            <option value="bank_transfer">Bank Transfer</option>
+                            <option value="upi">UPI</option>
+                            <option value="cheque">Cheque</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="submitPayment()">Update Payment</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Update Issue Status Modal -->
+<div class="modal fade" id="updateIssueModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Update Issue Status</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="issueForm">
+                    {% csrf_token %}
+                    <input type="hidden" id="issueId" name="issue_id">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Issue Title</label>
+                        <input type="text" class="form-control" id="issueTitle" readonly>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="issueStatus" class="form-label">Status *</label>
+                        <select class="form-control" id="issueStatus" name="status" required>
+                            <option value="open">Open</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="resolved">Resolved</option>
+                            <option value="closed">Closed</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="resolutionNotes" class="form-label">Resolution Notes</label>
+                        <textarea class="form-control" id="resolutionNotes" name="resolution_notes" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="submitIssueUpdate()">Update Status</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Security Deposit Modal -->
+<div class="modal fade" id="depositModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Update Security Deposit</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form method="post" action="#" id="depositForm">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="depositStatus" class="form-label">Status *</label>
+                        <select class="form-control" id="depositStatus" name="status" required>
+                            <option value="Paid">Paid</option>
+                            <option value="Pending">Pending</option>
+                            <option value="Refunded">Refunded</option>
+                            <option value="Adjusted">Adjusted</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="depositNotes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="depositNotes" name="notes" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="submitDepositUpdate()">Update</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Checkout Modal -->
+<div class="modal fade" id="checkoutModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Check Out Guest</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <strong>Warning:</strong> This action will check out the guest and make their room available.
+                </div>
+                
+                <form method="post" action="#" id="checkoutForm">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="checkoutDate" class="form-label">Checkout Date *</label>
+                        <input type="date" class="form-control" id="checkoutDate" name="checkout_date" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="finalSettlement" class="form-label">Final Settlement Amount</label>
+                        <input type="number" class="form-control" id="finalSettlement" name="final_settlement" step="0.01">
+                        <div class="form-text">Enter any additional charges or refunds (use negative for refunds)</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="checkoutNotes" class="form-label">Checkout Notes</label>
+                        <textarea class="form-control" id="checkoutNotes" name="notes" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-warning" onclick="submitCheckout()">Check Out Guest</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.timeline {
+    position: relative;
+    padding-left: 30px;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -35px;
+    top: 5px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+
+.timeline-item:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    left: -29px;
+    top: 17px;
+    width: 2px;
+    height: calc(100% + 20px);
+    background-color: #dee2e6;
+}
+
+.timeline-content {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    border-left: 3px solid #0d6efd;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function updatePayment(billId, guestName, totalAmount, currentPaid) {
+    $('#billId').val(billId);
+    $('#guestName').val(guestName);
+    $('#totalAmount').val('₹' + totalAmount);
+    $('#currentPaid').val('₹' + currentPaid);
+    $('#paidAmount').val(currentPaid);
+    $('#updatePaymentModal').modal('show');
+}
+
+function submitPayment() {
+    const billId = $('#billId').val();
+    const paidAmount = $('#paidAmount').val();
+    const paymentMethod = $('#paymentMethod').val();
+    
+    $.post(`{% url 'hostel:update_bill_payment' pg.id 0 %}`.replace('0', billId), {
+        'paid_amount': paidAmount,
+        'payment_method': paymentMethod,
+        'csrfmiddlewaretoken': $('[name=csrfmiddlewaretoken]').val()
+    }, function(data) {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error updating payment: ' + data.error);
+        }
+    });
+}
+
+function updateIssueStatus(issueId, title, currentStatus) {
+    $('#issueId').val(issueId);
+    $('#issueTitle').val(title);
+    $('#issueStatus').val(currentStatus);
+    $('#updateIssueModal').modal('show');
+}
+
+function submitIssueUpdate() {
+    const issueId = $('#issueId').val();
+    const status = $('#issueStatus').val();
+    const notes = $('#resolutionNotes').val();
+    
+    $.post(`{% url 'hostel:update_issue_status' pg.id 0 %}`.replace('0', issueId), {
+        'status': status,
+        'resolution_notes': notes,
+        'csrfmiddlewaretoken': $('[name=csrfmiddlewaretoken]').val()
+    }, function(data) {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error updating issue: ' + data.error);
+        }
+    });
+}
+
+function submitDepositUpdate() {
+    // This would need a corresponding view to handle deposit updates
+    alert('Deposit update functionality would be implemented with a corresponding view.');
+}
+
+function submitCheckout() {
+    // This would need a corresponding view to handle guest checkout
+    alert('Checkout functionality would be implemented with a corresponding view.');
+}
+
+$(document).ready(function() {
+    // Set today's date as default checkout date
+    const today = new Date().toISOString().split('T')[0];
+    $('#checkoutDate').val(today);
+});
+</script>
+{% endblock %}

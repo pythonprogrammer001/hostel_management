@@ -1,0 +1,1 @@
+# Hostel app for core PG/Hostel management functionality
