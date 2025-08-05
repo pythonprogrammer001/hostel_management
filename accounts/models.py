@@ -35,4 +35,3 @@ class CustomUser(AbstractUser):
         return self.role == 'guest'
     
     class Meta:
-        db_table = 'custom_user'

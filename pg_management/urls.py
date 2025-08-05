@@ -10,7 +10,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('accounts/', include('accounts.urls')),
     path('pg/', include('hostel.urls')),
-    path('', include('accounts.urls')),  # Root URL redirects to accounts
+    path('', include('accounts.urls', namespace='root')),  # Root URL redirects to accounts
 ]
 
 # Serve media files during development
