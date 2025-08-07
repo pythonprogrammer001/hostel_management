@@ -34,13 +34,27 @@ def pg_required(view_func):
         
         # PG Admin can only access their own PG
         if request.user.is_pg_admin():
-            if hasattr(request.user, 'owned_pg') and request.user.owned_pg.slug == pg.slug:
+            if (hasattr(request.user, 'owned_pg') and 
+                request.user.owned_pg.slug == pg.slug and 
+                request.user.is_approved and 
+                request.user.owned_pg.is_active):
                 return view_func(request, pg_slug, *args, **kwargs)
+            elif not request.user.is_approved:
+                messages.error(request, 'Your account is pending approval from the administrator.')
+                return redirect('accounts:login')
+            elif not request.user.owned_pg.is_active:
+                messages.error(request, 'Your PG is not activated yet. Please contact the administrator.')
+                return redirect('accounts:login')
         
         # Guest can only access their assigned PG
         if request.user.is_guest():
-            if request.user.pg and request.user.pg.slug == pg.slug:
+            if (request.user.pg and 
+                request.user.pg.slug == pg.slug and 
+                request.user.is_approved):
                 return view_func(request, pg_slug, *args, **kwargs)
+            elif not request.user.is_approved:
+                messages.error(request, 'Your account is pending approval from the PG administrator.')
+                return redirect('hostel:pg_login', pg_slug=pg_slug)
         
         return HttpResponseForbidden("You don't have permission to access this PG.")
     
@@ -51,7 +65,11 @@ def guest_register(request, pg_slug):
     """
     Guest self-registration for a specific PG
     """
-    pg = get_object_or_404(PG, slug=pg_slug, is_active=True)
+    pg = get_object_or_404(PG, slug=pg_slug)
+    
+    if not pg.is_active:
+        messages.error(request, f'{pg.name} is not currently accepting new registrations.')
+        return render(request, 'hostel/guest_register.html', {'form': GuestRegistrationForm(), 'pg': pg})
     
     if request.method == 'POST':
         form = GuestRegistrationForm(request.POST, request.FILES)
@@ -91,7 +109,11 @@ def pg_login(request, pg_slug):
     """
     Login page for a specific PG
     """
-    pg = get_object_or_404(PG, slug=pg_slug, is_active=True)
+    pg = get_object_or_404(PG, slug=pg_slug)
+    
+    if not pg.is_active:
+        messages.error(request, f'{pg.name} is not currently active. Please contact the administrator.')
+        return render(request, 'hostel/pg_login.html', {'pg': pg})
     
     if request.method == 'POST':
         username = request.POST.get('username')
@@ -99,14 +121,20 @@ def pg_login(request, pg_slug):
         
         user = authenticate(request, username=username, password=password)
         if user is not None:
-            if user.pg == pg and user.is_approved:
+            if user.pg == pg:
                 login(request, user)
-                if user.is_pg_admin():
+                if user.is_pg_admin() and user.is_approved and pg.is_active:
                     return redirect('hostel:pg_dashboard', pg_slug=pg_slug)
-                elif user.is_guest():
+                elif user.is_pg_admin() and not user.is_approved:
+                    messages.error(request, 'Your account is pending approval from the administrator.')
+                elif user.is_pg_admin() and not pg.is_active:
+                    messages.error(request, 'Your PG is not activated yet. Please contact the administrator.')
+                elif user.is_guest() and user.is_approved:
                     return redirect('hostel:guest_dashboard', pg_slug=pg_slug)
+                elif user.is_guest() and not user.is_approved:
+                    messages.error(request, 'Your account is pending approval from the PG administrator.')
             else:
-                messages.error(request, 'Account not approved or not associated with this PG.')
+                messages.error(request, 'Account not associated with this PG.')
         else:
             messages.error(request, 'Invalid username or password.')
     

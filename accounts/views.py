@@ -5,6 +5,7 @@ from django.contrib import messages
 from django.urls import reverse
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
+from django.db import IntegrityError
 from .models import CustomUser
 from hostel.models import PG
 from .forms import PGAdminRegistrationForm, GuestRegistrationForm
@@ -20,14 +21,23 @@ def dashboard_redirect(request):
     if request.user.is_super_admin():
         return redirect('/admin/')
     elif request.user.is_pg_admin():
-        if hasattr(request.user, 'owned_pg'):
+        if hasattr(request.user, 'owned_pg') and request.user.is_approved and request.user.owned_pg.is_active:
             return redirect('hostel:pg_dashboard', pg_slug=request.user.owned_pg.slug)
+        elif hasattr(request.user, 'owned_pg') and not request.user.is_approved:
+            messages.error(request, 'Your account is pending approval from the administrator.')
+            return redirect('accounts:login')
+        elif hasattr(request.user, 'owned_pg') and not request.user.owned_pg.is_active:
+            messages.error(request, 'Your PG is not activated yet. Please contact the administrator.')
+            return redirect('accounts:login')
         else:
             messages.error(request, 'No PG associated with your account.')
             return redirect('accounts:login')
     elif request.user.is_guest():
-        if request.user.pg:
+        if request.user.pg and request.user.is_approved:
             return redirect('hostel:guest_dashboard', pg_slug=request.user.pg.slug)
+        elif request.user.pg and not request.user.is_approved:
+            messages.error(request, 'Your account is pending approval from the PG administrator.')
+            return redirect('hostel:pg_login', pg_slug=request.user.pg.slug)
         else:
             messages.error(request, 'No PG associated with your account.')
             return redirect('accounts:login')
@@ -47,6 +57,7 @@ def pg_admin_register(request):
                 user = form.save(commit=False)
                 user.role = 'pg_admin'
                 user.is_approved = False  # Requires Super Admin approval
+                user.is_active = True  # Allow login but restrict access
                 user.save()
                 
                 # Create PG instance
@@ -65,7 +76,7 @@ def pg_admin_register(request):
                 
                 messages.success(
                     request, 
-                    'Registration successful! Your account is pending approval from the administrator.'
+                    'Registration successful! Your account is pending approval from the administrator. You cannot access the dashboard until approved.'
                 )
                 return redirect('accounts:login')
             except IntegrityError as e:
