@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth import login, authenticate
 from django.contrib import messages
 from django.http import JsonResponse, HttpResponseForbidden
 from django.views.decorators.http import require_http_methods
@@ -15,7 +16,7 @@ from .models import (
 )
 from accounts.models import CustomUser
 from .forms import (
-    GuestCheckInForm, RoomForm, ExpenseForm, 
+    GuestRegistrationForm, GuestCheckInForm, RoomForm, ExpenseForm, 
     IssueForm, MonthlyBillForm, GuestProfileUpdateForm
 )
 
@@ -24,35 +25,101 @@ def pg_required(view_func):
     """
     Decorator to ensure user has access to the specified PG
     """
-    def wrapper(request, pg_id, *args, **kwargs):
-        pg = get_object_or_404(PG, id=pg_id)
+    def wrapper(request, pg_slug, *args, **kwargs):
+        pg = get_object_or_404(PG, slug=pg_slug)
         
         # Super admin can access all PGs
         if request.user.is_superuser:
-            return view_func(request, pg_id, *args, **kwargs)
+            return view_func(request, pg_slug, *args, **kwargs)
         
         # PG Admin can only access their own PG
         if request.user.is_pg_admin():
-            if hasattr(request.user, 'owned_pg') and request.user.owned_pg.id == pg.id:
-                return view_func(request, pg_id, *args, **kwargs)
+            if hasattr(request.user, 'owned_pg') and request.user.owned_pg.slug == pg.slug:
+                return view_func(request, pg_slug, *args, **kwargs)
         
         # Guest can only access their assigned PG
         if request.user.is_guest():
-            if request.user.pg and request.user.pg.id == pg.id:
-                return view_func(request, pg_id, *args, **kwargs)
+            if request.user.pg and request.user.pg.slug == pg.slug:
+                return view_func(request, pg_slug, *args, **kwargs)
         
         return HttpResponseForbidden("You don't have permission to access this PG.")
     
     return wrapper
 
 
+def guest_register(request, pg_slug):
+    """
+    Guest self-registration for a specific PG
+    """
+    pg = get_object_or_404(PG, slug=pg_slug, is_active=True)
+    
+    if request.method == 'POST':
+        form = GuestRegistrationForm(request.POST, request.FILES)
+        if form.is_valid():
+            # Create user account for guest
+            user = form.save(commit=False)
+            user.role = 'guest'
+            user.pg = pg
+            user.is_approved = False  # Requires PG Admin approval
+            user.save()
+            
+            # Create guest profile
+            guest_profile = GuestProfile.objects.create(
+                user=user,
+                rent_amount=0,  # Will be set by PG admin
+                check_in_date=timezone.now().date(),
+                emergency_contact_name=form.cleaned_data['emergency_contact_name'],
+                emergency_contact_phone=form.cleaned_data['emergency_contact_phone'],
+                id_proof_type=form.cleaned_data['id_proof_type'],
+                id_proof_number=form.cleaned_data['id_proof_number'],
+                id_proof_document=form.cleaned_data['id_proof_document'],
+                profile_photo=form.cleaned_data['profile_photo']
+            )
+            
+            messages.success(
+                request, 
+                f'Registration successful! Your account is pending approval from {pg.name} administration.'
+            )
+            return redirect('hostel:pg_login', pg_slug=pg_slug)
+    else:
+        form = GuestRegistrationForm()
+    
+    return render(request, 'hostel/guest_register.html', {'form': form, 'pg': pg})
+
+
+def pg_login(request, pg_slug):
+    """
+    Login page for a specific PG
+    """
+    pg = get_object_or_404(PG, slug=pg_slug, is_active=True)
+    
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+        
+        user = authenticate(request, username=username, password=password)
+        if user is not None:
+            if user.pg == pg and user.is_approved:
+                login(request, user)
+                if user.is_pg_admin():
+                    return redirect('hostel:pg_dashboard', pg_slug=pg_slug)
+                elif user.is_guest():
+                    return redirect('hostel:guest_dashboard', pg_slug=pg_slug)
+            else:
+                messages.error(request, 'Account not approved or not associated with this PG.')
+        else:
+            messages.error(request, 'Invalid username or password.')
+    
+    return render(request, 'hostel/pg_login.html', {'pg': pg})
+
+
 @login_required
 @pg_required
-def pg_admin_dashboard(request, pg_id):
+def pg_admin_dashboard(request, pg_slug):
     """
     Main dashboard for PG Admin
     """
-    pg = get_object_or_404(PG, id=pg_id)
+    pg = get_object_or_404(PG, slug=pg_slug)
     
     # Key metrics
     total_rooms = pg.room_set.count()

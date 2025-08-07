@@ -21,13 +21,13 @@ def dashboard_redirect(request):
         return redirect('/admin/')
     elif request.user.is_pg_admin():
         if hasattr(request.user, 'owned_pg'):
-            return redirect('hostel:pg_dashboard', pg_id=request.user.owned_pg.id)
+            return redirect('hostel:pg_dashboard', pg_slug=request.user.owned_pg.slug)
         else:
             messages.error(request, 'No PG associated with your account.')
             return redirect('accounts:login')
     elif request.user.is_guest():
         if request.user.pg:
-            return redirect('hostel:guest_dashboard', pg_id=request.user.pg.id)
+            return redirect('hostel:guest_dashboard', pg_slug=request.user.pg.slug)
         else:
             messages.error(request, 'No PG associated with your account.')
             return redirect('accounts:login')

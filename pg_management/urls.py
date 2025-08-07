@@ -9,7 +9,7 @@ from django.conf.urls.static import static
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('accounts/', include('accounts.urls')),
-    path('pg/', include('hostel.urls')),
+    path('', include('hostel.urls')),  # PG-specific URLs at root level
     path('', include('accounts.urls', namespace='root')),  # Root URL redirects to accounts
 ]
 

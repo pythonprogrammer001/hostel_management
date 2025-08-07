@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from django.core.validators import MinValueValidator
+from django.utils.text import slugify
 from decimal import Decimal
 
 
@@ -10,6 +11,7 @@ class PG(models.Model):
     Each PG is managed by one PG Admin and contains multiple rooms and guests
     """
     name = models.CharField(max_length=100)
+    slug = models.SlugField(max_length=100, unique=True, blank=True)
     owner = models.OneToOneField(
         settings.AUTH_USER_MODEL, 
         on_delete=models.CASCADE, 
@@ -28,6 +30,17 @@ class PG(models.Model):
     
     def __str__(self):
         return self.name
+    
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            base_slug = slugify(self.name)
+            slug = base_slug
+            counter = 1
+            while PG.objects.filter(slug=slug).exists():
+                slug = f"{base_slug}-{counter}"
+                counter += 1
+            self.slug = slug
+        super().save(*args, **kwargs)
     
     def get_occupancy_rate(self):
         """Calculate occupancy rate percentage"""

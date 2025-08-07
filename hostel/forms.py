@@ -7,6 +7,57 @@ from .models import (
 from accounts.models import CustomUser
 
 
+class GuestRegistrationForm(UserCreationForm):
+    """
+    Registration form for Guests (self-registration)
+    """
+    first_name = forms.CharField(max_length=30, required=True)
+    last_name = forms.CharField(max_length=30, required=True)
+    email = forms.EmailField(required=True)
+    phone = forms.CharField(max_length=15, required=True)
+    address = forms.CharField(widget=forms.Textarea(attrs={'rows': 3}), required=True)
+    
+    # Guest profile fields
+    emergency_contact_name = forms.CharField(max_length=100, required=True)
+    emergency_contact_phone = forms.CharField(max_length=15, required=True)
+    
+    # ID Proof
+    id_proof_type = forms.ChoiceField(choices=[
+        ('aadhar', 'Aadhar Card'),
+        ('passport', 'Passport'),
+        ('driving_license', 'Driving License'),
+        ('voter_id', 'Voter ID'),
+    ], required=True)
+    id_proof_number = forms.CharField(max_length=50, required=True)
+    id_proof_document = forms.FileField(required=True, help_text="Upload ID proof document")
+    profile_photo = forms.ImageField(required=True, help_text="Upload your profile photo")
+    
+    class Meta:
+        model = CustomUser
+        fields = ('username', 'first_name', 'last_name', 'email', 'phone', 'address', 'password1', 'password2')
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Add Bootstrap classes
+        for field_name, field in self.fields.items():
+            if isinstance(field.widget, forms.CheckboxInput):
+                field.widget.attrs['class'] = 'form-check-input'
+            else:
+                field.widget.attrs['class'] = 'form-control'
+    
+    def clean_username(self):
+        username = self.cleaned_data['username']
+        if CustomUser.objects.filter(username=username).exists():
+            raise forms.ValidationError('Username already exists.')
+        return username
+    
+    def clean_email(self):
+        email = self.cleaned_data['email']
+        if CustomUser.objects.filter(email=email).exists():
+            raise forms.ValidationError('Email already exists.')
+        return email
+
+
 class GuestCheckInForm(forms.Form):
     """
     Form for checking in new guests
