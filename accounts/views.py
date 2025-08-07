@@ -43,30 +43,40 @@ def pg_admin_register(request):
     if request.method == 'POST':
         form = PGAdminRegistrationForm(request.POST)
         if form.is_valid():
-            user = form.save(commit=False)
-            user.role = 'pg_admin'
-            user.is_approved = False  # Requires Super Admin approval
-            user.save()
-            
-            # Create PG instance
-            pg = PG.objects.create(
-                name=form.cleaned_data['pg_name'],
-                owner=user,
-                address=form.cleaned_data['pg_address'],
-                contact_phone=form.cleaned_data['contact_phone'],
-                contact_email=form.cleaned_data['contact_email'],
-                is_active=False  # Requires Super Admin activation
-            )
-            
-            # Associate user with PG
-            user.pg = pg
-            user.save()
-            
-            messages.success(
-                request, 
-                'Registration successful! Your account is pending approval from the administrator.'
-            )
-            return redirect('accounts:login')
+            try:
+                user = form.save(commit=False)
+                user.role = 'pg_admin'
+                user.is_approved = False  # Requires Super Admin approval
+                user.save()
+                
+                # Create PG instance
+                pg = PG.objects.create(
+                    name=form.cleaned_data['pg_name'],
+                    owner=user,
+                    address=form.cleaned_data['pg_address'],
+                    contact_phone=form.cleaned_data['contact_phone'],
+                    contact_email=form.cleaned_data['contact_email'],
+                    is_active=False  # Requires Super Admin activation
+                )
+                
+                # Associate user with PG
+                user.pg = pg
+                user.save()
+                
+                messages.success(
+                    request, 
+                    'Registration successful! Your account is pending approval from the administrator.'
+                )
+                return redirect('accounts:login')
+            except IntegrityError as e:
+                if 'username' in str(e):
+                    form.add_error('username', 'This username is already taken. Please choose a different one.')
+                elif 'email' in str(e):
+                    form.add_error('email', 'This email is already registered. Please use a different email.')
+                else:
+                    messages.error(request, 'Registration failed. Please check your information and try again.')
+        else:
+            messages.error(request, 'Please correct the errors below.')
     else:
         form = PGAdminRegistrationForm()
     

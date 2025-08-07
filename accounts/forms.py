@@ -1,5 +1,6 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
+from django.core.exceptions import ValidationError
 from .models import CustomUser
 
 
@@ -30,6 +31,24 @@ class PGAdminRegistrationForm(UserCreationForm):
             field.widget.attrs['class'] = 'form-control'
             if field.required:
                 field.widget.attrs['required'] = True
+    
+    def clean_username(self):
+        username = self.cleaned_data.get('username')
+        if username and CustomUser.objects.filter(username=username).exists():
+            raise ValidationError('This username is already taken. Please choose a different one.')
+        return username
+    
+    def clean_email(self):
+        email = self.cleaned_data.get('email')
+        if email and CustomUser.objects.filter(email=email).exists():
+            raise ValidationError('This email is already registered. Please use a different email.')
+        return email
+    
+    def clean_contact_email(self):
+        contact_email = self.cleaned_data.get('contact_email')
+        if contact_email and CustomUser.objects.filter(email=contact_email).exists():
+            raise ValidationError('This email is already registered. Please use a different email.')
+        return contact_email
 
 
 class GuestRegistrationForm(UserCreationForm):

@@ -120,6 +120,9 @@
                             {% if form.contact_email.errors %}
                                 <div class="text-danger small">{{ form.contact_email.errors.0 }}</div>
                             {% endif %}
+                            {% if form.contact_email.errors %}
+                                <div class="text-danger small">{{ form.contact_email.errors.0 }}</div>
+                            {% endif %}
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="{{ form.pg_address.id_for_label }}" class="form-label">PG Address *</label>
