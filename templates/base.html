@@ -31,38 +31,38 @@
                     <ul class="navbar-nav me-auto">
                         {% if user.is_pg_admin %}
                             <li class="nav-item">
-                                <a class="nav-link" href="{% url 'hostel:pg_dashboard' user.owned_pg.id %}">
+                                <a class="nav-link" href="{% url 'hostel:pg_dashboard' user.owned_pg.slug %}">
                                     <i class="bi bi-speedometer2"></i> Dashboard
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" href="{% url 'hostel:guest_list' user.owned_pg.id %}">
+                                <a class="nav-link" href="{% url 'hostel:guest_list' user.owned_pg.slug %}">
                                     <i class="bi bi-people"></i> Guests
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" href="{% url 'hostel:room_management' user.owned_pg.id %}">
+                                <a class="nav-link" href="{% url 'hostel:room_management' user.owned_pg.slug %}">
                                     <i class="bi bi-door-open"></i> Rooms
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" href="{% url 'hostel:billing_page' user.owned_pg.id %}">
+                                <a class="nav-link" href="{% url 'hostel:billing_page' user.owned_pg.slug %}">
                                     <i class="bi bi-receipt"></i> Billing
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" href="{% url 'hostel:expense_tracking' user.owned_pg.id %}">
+                                <a class="nav-link" href="{% url 'hostel:expense_tracking' user.owned_pg.slug %}">
                                     <i class="bi bi-graph-down"></i> Expenses
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" href="{% url 'hostel:issue_tracking' user.owned_pg.id %}">
+                                <a class="nav-link" href="{% url 'hostel:issue_tracking' user.owned_pg.slug %}">
                                     <i class="bi bi-exclamation-triangle"></i> Issues
                                 </a>
                             </li>
                         {% elif user.is_guest %}
                             <li class="nav-item">
-                                <a class="nav-link" href="{% url 'hostel:guest_dashboard' user.pg.id %}">
+                                <a class="nav-link" href="{% url 'hostel:guest_dashboard' user.pg.slug %}">
                                     <i class="bi bi-house"></i> My Dashboard
                                 </a>
                             </li>

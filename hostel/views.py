@@ -215,11 +215,11 @@ def pg_admin_dashboard(request, pg_slug):
 
 @login_required
 @pg_required
-def guest_check_in(request, pg_id):
+def guest_check_in(request, pg_slug):
     """
     Check-in new guest
     """
-    pg = get_object_or_404(PG, id=pg_id)
+    pg = get_object_or_404(PG, slug=pg_slug)
     
     if request.method == 'POST':
         form = GuestCheckInForm(request.POST, request.FILES, pg=pg)
@@ -271,7 +271,7 @@ def guest_check_in(request, pg_id):
             )
             
             messages.success(request, f'Guest {user.get_full_name()} checked in successfully!')
-            return redirect('hostel:guest_detail', pg_id=pg_id, guest_id=guest_profile.id)
+            return redirect('hostel:guest_detail', pg_slug=pg_slug, guest_id=guest_profile.id)
     else:
         form = GuestCheckInForm(pg=pg)
     
@@ -280,11 +280,11 @@ def guest_check_in(request, pg_id):
 
 @login_required
 @pg_required
-def guest_list(request, pg_id):
+def guest_list(request, pg_slug):
     """
     List all guests for a PG
     """
-    pg = get_object_or_404(PG, id=pg_id)
+    pg = get_object_or_404(PG, slug=pg_slug)
     
     # Filter options
     status_filter = request.GET.get('status', 'active')
@@ -317,11 +317,11 @@ def guest_list(request, pg_id):
 
 @login_required
 @pg_required
-def guest_detail(request, pg_id, guest_id):
+def guest_detail(request, pg_slug, guest_id):
     """
     Detailed view of a guest
     """
-    pg = get_object_or_404(PG, id=pg_id)
+    pg = get_object_or_404(PG, slug=pg_slug)
     guest = get_object_or_404(GuestProfile, id=guest_id, user__pg=pg)
     
     # Guest history
@@ -353,11 +353,11 @@ def guest_detail(request, pg_id, guest_id):
 
 @login_required
 @pg_required
-def billing_page(request, pg_id):
+def billing_page(request, pg_slug):
     """
     Billing management page
     """
-    pg = get_object_or_404(PG, id=pg_id)
+    pg = get_object_or_404(PG, slug=pg_slug)
     
     # Get current month or selected month
     selected_month = request.GET.get('month')
@@ -396,11 +396,11 @@ def billing_page(request, pg_id):
 
 @login_required
 @pg_required
-def generate_bills(request, pg_id):
+def generate_bills(request, pg_slug):
     """
     Generate bills for all active guests for a specific month
     """
-    pg = get_object_or_404(PG, id=pg_id)
+    pg = get_object_or_404(PG, slug=pg_slug)
     
     if request.method == 'POST':
         month_year = request.POST.get('month_year')
@@ -435,18 +435,18 @@ def generate_bills(request, pg_id):
                 bills_created += 1
         
         messages.success(request, f'{bills_created} bills generated successfully!')
-        return redirect('hostel:billing_page', pg_id=pg_id)
+        return redirect('hostel:billing_page', pg_slug=pg_slug)
     
-    return redirect('hostel:billing_page', pg_id=pg_id)
+    return redirect('hostel:billing_page', pg_slug=pg_slug)
 
 
 @login_required
 @pg_required
-def guest_dashboard(request, pg_id):
+def guest_dashboard(request, pg_slug):
     """
     Dashboard for guests
     """
-    pg = get_object_or_404(PG, id=pg_id)
+    pg = get_object_or_404(PG, slug=pg_slug)
     
     # Ensure user is a guest of this PG
     if not request.user.is_guest() or request.user.pg != pg:
@@ -490,11 +490,11 @@ def guest_dashboard(request, pg_id):
 
 @login_required
 @pg_required
-def room_management(request, pg_id):
+def room_management(request, pg_slug):
     """
     Room management page for PG Admin
     """
-    pg = get_object_or_404(PG, id=pg_id)
+    pg = get_object_or_404(PG, slug=pg_slug)
     rooms = Room.objects.filter(pg=pg).prefetch_related('guestprofile_set')
     
     context = {
@@ -507,11 +507,11 @@ def room_management(request, pg_id):
 
 @login_required
 @pg_required
-def expense_tracking(request, pg_id):
+def expense_tracking(request, pg_slug):
     """
     Expense tracking page for PG Admin
     """
-    pg = get_object_or_404(PG, id=pg_id)
+    pg = get_object_or_404(PG, slug=pg_slug)
     
     if request.method == 'POST':
         form = ExpenseForm(request.POST, request.FILES)
@@ -521,7 +521,7 @@ def expense_tracking(request, pg_id):
             expense.created_by = request.user
             expense.save()
             messages.success(request, 'Expense added successfully!')
-            return redirect('hostel:expense_tracking', pg_id=pg_id)
+            return redirect('hostel:expense_tracking', pg_slug=pg_slug)
     else:
         form = ExpenseForm()
     
@@ -547,11 +547,11 @@ def expense_tracking(request, pg_id):
 
 @login_required
 @pg_required
-def issue_tracking(request, pg_id):
+def issue_tracking(request, pg_slug):
     """
     Issue tracking page
     """
-    pg = get_object_or_404(PG, id=pg_id)
+    pg = get_object_or_404(PG, slug=pg_slug)
     
     # Filter by status
     status_filter = request.GET.get('status', 'all')
@@ -574,11 +574,11 @@ def issue_tracking(request, pg_id):
 @require_http_methods(["POST"])
 @login_required
 @pg_required
-def update_bill_payment(request, pg_id, bill_id):
+def update_bill_payment(request, pg_slug, bill_id):
     """
     AJAX view to update bill payment status
     """
-    pg = get_object_or_404(PG, id=pg_id)
+    pg = get_object_or_404(PG, slug=pg_slug)
     bill = get_object_or_404(MonthlyBill, id=bill_id, guest__user__pg=pg)
     
     paid_amount = request.POST.get('paid_amount')
@@ -604,11 +604,11 @@ def update_bill_payment(request, pg_id, bill_id):
 @require_http_methods(["POST"])
 @login_required
 @pg_required
-def update_issue_status(request, pg_id, issue_id):
+def update_issue_status(request, pg_slug, issue_id):
     """
     AJAX view to update issue status
     """
-    pg = get_object_or_404(PG, id=pg_id)
+    pg = get_object_or_404(PG, slug=pg_slug)
     issue = get_object_or_404(Issue, id=issue_id, guest__user__pg=pg)
     
     new_status = request.POST.get('status')
