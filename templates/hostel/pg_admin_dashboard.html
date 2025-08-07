@@ -89,6 +89,62 @@
 </div>
 
 <div class="row">
+    <!-- Pending Approvals -->
+    <div class="col-md-12 mb-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5><i class="bi bi-clock"></i> Pending Approvals ({{ pending_guests.count }})</h5>
+            </div>
+            <div class="card-body">
+                {% if pending_guests %}
+                    <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                        <table class="table table-sm">
+                            <thead class="sticky-top bg-light">
+                                <tr>
+                                    <th>Photo</th>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Phone</th>
+                                    <th>Registered</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for guest in pending_guests %}
+                                <tr>
+                                    <td>
+                                        {% if guest.profile_photo %}
+                                            <img src="{{ guest.profile_photo.url }}" alt="Profile" class="rounded-circle" width="32" height="32" style="object-fit: cover;">
+                                        {% else %}
+                                            <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                                                <i class="bi bi-person text-white"></i>
+                                            </div>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ guest.user.get_full_name }}</td>
+                                    <td>{{ guest.user.email }}</td>
+                                    <td>{{ guest.user.phone }}</td>
+                                    <td>{{ guest.created_at|date:"M d, Y" }}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-success" onclick="approveGuest({{ guest.user.id }}, '{{ guest.user.get_full_name }}')">
+                                            <i class="bi bi-check"></i> Approve
+                                        </button>
+                                        <button class="btn btn-sm btn-danger" onclick="rejectGuest({{ guest.user.id }}, '{{ guest.user.get_full_name }}')">
+                                            <i class="bi bi-x"></i> Reject
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted text-center">No pending approvals</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
     <!-- Active Guests -->
     <div class="col-md-6 mb-4">
         <div class="card">
@@ -98,10 +154,11 @@
             </div>
             <div class="card-body">
                 {% if active_guests %}
-                    <div class="table-responsive">
+                    <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
                         <table class="table table-sm">
-                            <thead>
+                            <thead class="sticky-top bg-light">
                                 <tr>
+                                    <th>Photo</th>
                                     <th>Name</th>
                                     <th>Room</th>
                                     <th>Rent</th>
@@ -109,20 +166,36 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for guest in active_guests|slice:":5" %}
+                                {% for guest in active_guests|slice:":10" %}
                                 <tr>
+                                    <td>
+                                        {% if guest.profile_photo %}
+                                            <img src="{{ guest.profile_photo.url }}" alt="Profile" class="rounded-circle" width="32" height="32" style="object-fit: cover;">
+                                        {% else %}
+                                            <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                                                <i class="bi bi-person text-white"></i>
+                                            </div>
+                                        {% endif %}
+                                    </td>
                                     <td>
                                         <a href="{% url 'hostel:guest_detail' pg.id guest.id %}" class="text-decoration-none">
                                             {{ guest.user.get_full_name }}
                                         </a>
                                     </td>
-                                    <td>{{ guest.room.room_number }}</td>
+                                    <td>{{ guest.room.room_number|default:"Not assigned" }}</td>
                                     <td>₹{{ guest.rent_amount }}</td>
-                                    <td>{{ guest.check_in_date|date:"M d, Y" }}</td>
+                                    <td>{{ guest.check_in_date|date:"M d, Y"|default:"Not set" }}</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
+                        {% if active_guests.count > 10 %}
+                            <div class="text-center mt-2">
+                                <a href="{% url 'hostel:guest_list' pg.slug %}" class="btn btn-sm btn-outline-primary">
+                                    View All {{ active_guests.count }} Guests
+                                </a>
+                            </div>
+                        {% endif %}
                     </div>
                 {% else %}
                     <p class="text-muted text-center">No active guests</p>
@@ -139,10 +212,11 @@
             </div>
             <div class="card-body">
                 {% if upcoming_checkouts %}
-                    <div class="table-responsive">
+                    <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
                         <table class="table table-sm">
-                            <thead>
+                            <thead class="sticky-top bg-light">
                                 <tr>
+                                    <th>Photo</th>
                                     <th>Name</th>
                                     <th>Room</th>
                                     <th>Checkout Date</th>
@@ -150,8 +224,17 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for guest in upcoming_checkouts %}
+                                {% for guest in upcoming_checkouts|slice:":10" %}
                                 <tr>
+                                    <td>
+                                        {% if guest.profile_photo %}
+                                            <img src="{{ guest.profile_photo.url }}" alt="Profile" class="rounded-circle" width="32" height="32" style="object-fit: cover;">
+                                        {% else %}
+                                            <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                                                <i class="bi bi-person text-white"></i>
+                                            </div>
+                                        {% endif %}
+                                    </td>
                                     <td>
                                         <a href="{% url 'hostel:guest_detail' pg.id guest.id %}" class="text-decoration-none">
                                             {{ guest.user.get_full_name }}
@@ -186,10 +269,11 @@
             </div>
             <div class="card-body">
                 {% if recent_checkins %}
-                    <div class="table-responsive">
+                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
                         <table class="table">
-                            <thead>
+                            <thead class="sticky-top bg-light">
                                 <tr>
+                                    <th>Photo</th>
                                     <th>Guest</th>
                                     <th>Room</th>
                                     <th>Rent</th>
@@ -202,23 +286,21 @@
                                 {% for guest in recent_checkins %}
                                 <tr>
                                     <td>
-                                        <div class="d-flex align-items-center">
-                                            {% if guest.profile_photo %}
-                                                <img src="{{ guest.profile_photo.url }}" alt="Profile" class="rounded-circle me-2" width="32" height="32">
-                                            {% else %}
-                                                <div class="bg-secondary rounded-circle me-2 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
-                                                    <i class="bi bi-person text-white"></i>
-                                                </div>
-                                            {% endif %}
-                                            <div>
-                                                <strong>{{ guest.user.get_full_name }}</strong><br>
-                                                <small class="text-muted">{{ guest.user.username }}</small>
+                                        {% if guest.profile_photo %}
+                                            <img src="{{ guest.profile_photo.url }}" alt="Profile" class="rounded-circle" width="40" height="40" style="object-fit: cover;">
+                                        {% else %}
+                                            <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                                <i class="bi bi-person text-white"></i>
                                             </div>
-                                        </div>
+                                        {% endif %}
                                     </td>
-                                    <td>{{ guest.room.room_number }}</td>
+                                    <td>
+                                        <strong>{{ guest.user.get_full_name }}</strong><br>
+                                        <small class="text-muted">{{ guest.user.username }}</small>
+                                    </td>
+                                    <td>{{ guest.room.room_number|default:"Not assigned" }}</td>
                                     <td>₹{{ guest.rent_amount }}</td>
-                                    <td>{{ guest.check_in_date|date:"M d, Y" }}</td>
+                                    <td>{{ guest.check_in_date|date:"M d, Y"|default:"Not set" }}</td>
                                     <td>
                                         {% if guest.is_active %}
                                             <span class="badge bg-success">Active</span>
@@ -243,4 +325,121 @@
         </div>
     </div>
 </div>
+
+<!-- Approve/Reject Guest Modals -->
+<div class="modal fade" id="approveGuestModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Approve Guest</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to approve <strong id="approveGuestName"></strong>?</p>
+                <form id="approveGuestForm">
+                    {% csrf_token %}
+                    <input type="hidden" id="approveGuestId" name="guest_id">
+                    
+                    <div class="mb-3">
+                        <label for="assignRoom" class="form-label">Assign Room (Optional)</label>
+                        <select class="form-control" id="assignRoom" name="room_id">
+                            <option value="">Select Room</option>
+                            {% for room in pg.room_set.all %}
+                                {% if room.is_available %}
+                                    <option value="{{ room.id }}">Room {{ room.room_number }} - ₹{{ room.rent_amount }}</option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="setRent" class="form-label">Monthly Rent (₹)</label>
+                        <input type="number" class="form-control" id="setRent" name="rent_amount" step="0.01">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="confirmApproveGuest()">Approve Guest</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="rejectGuestModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Reject Guest</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to reject <strong id="rejectGuestName"></strong>?</p>
+                <p class="text-danger">This will delete their account permanently.</p>
+                <input type="hidden" id="rejectGuestId">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" onclick="confirmRejectGuest()">Reject Guest</button>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+function approveGuest(guestId, guestName) {
+    $('#approveGuestId').val(guestId);
+    $('#approveGuestName').text(guestName);
+    $('#approveGuestModal').modal('show');
+}
+
+function rejectGuest(guestId, guestName) {
+    $('#rejectGuestId').val(guestId);
+    $('#rejectGuestName').text(guestName);
+    $('#rejectGuestModal').modal('show');
+}
+
+function confirmApproveGuest() {
+    const guestId = $('#approveGuestId').val();
+    const roomId = $('#assignRoom').val();
+    const rentAmount = $('#setRent').val();
+    
+    $.post('{% url "hostel:approve_guest" pg.slug %}', {
+        'guest_id': guestId,
+        'room_id': roomId,
+        'rent_amount': rentAmount,
+        'csrfmiddlewaretoken': $('[name=csrfmiddlewaretoken]').val()
+    }, function(data) {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error approving guest: ' + data.error);
+        }
+    });
+}
+
+function confirmRejectGuest() {
+    const guestId = $('#rejectGuestId').val();
+    
+    $.post('{% url "hostel:reject_guest" pg.slug %}', {
+        'guest_id': guestId,
+        'csrfmiddlewaretoken': $('[name=csrfmiddlewaretoken]').val()
+    }, function(data) {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error rejecting guest: ' + data.error);
+        }
+    });
+}
+
+// Auto-fill rent amount when room is selected
+$('#assignRoom').change(function() {
+    const selectedOption = $(this).find('option:selected');
+    const roomText = selectedOption.text();
+    if (roomText.includes('₹')) {
+        const rent = roomText.split('₹')[1];
+        $('#setRent').val(rent);
+    }
+});
+</script>
 {% endblock %}

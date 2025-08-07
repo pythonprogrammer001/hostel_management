@@ -25,4 +25,6 @@ urlpatterns = [
     # AJAX URLs
     path('<str:pg_slug>/ajax/update-bill/<int:bill_id>/', views.update_bill_payment, name='update_bill_payment'),
     path('<str:pg_slug>/ajax/update-issue/<int:issue_id>/', views.update_issue_status, name='update_issue_status'),
+    path('<str:pg_slug>/ajax/approve-guest/', views.approve_guest, name='approve_guest'),
+    path('<str:pg_slug>/ajax/reject-guest/', views.reject_guest, name='reject_guest'),
 ]

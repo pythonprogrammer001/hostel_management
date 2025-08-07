@@ -78,14 +78,14 @@ def guest_register(request, pg_slug):
             user = form.save(commit=False)
             user.role = 'guest'
             user.pg = pg
-            user.is_approved = False  # Requires PG Admin approval
+            user.is_approved = False  # Requires PG Admin approval - MUST be False
             user.save()
             
             # Create guest profile
             guest_profile = GuestProfile.objects.create(
                 user=user,
                 rent_amount=0,  # Will be set by PG admin
-                check_in_date=timezone.now().date(),
+                check_in_date=None,  # Will be set when approved
                 emergency_contact_name=form.cleaned_data['emergency_contact_name'],
                 emergency_contact_phone=form.cleaned_data['emergency_contact_phone'],
                 id_proof_type=form.cleaned_data['id_proof_type'],
@@ -149,20 +149,32 @@ def pg_admin_dashboard(request, pg_slug):
     """
     pg = get_object_or_404(PG, slug=pg_slug)
     
+    # Pagination parameters
+    page = request.GET.get('page', 1)
+    per_page = 10
+    
     # Key metrics
     total_rooms = pg.room_set.count()
     occupied_rooms = Room.objects.filter(
         pg=pg, 
         guestprofile__isnull=False, 
-        guestprofile__check_out_date__isnull=True
+        guestprofile__check_out_date__isnull=True,
+        guestprofile__user__is_approved=True
     ).count()
     occupancy_rate = pg.get_occupancy_rate()
     
     # Active guests
     active_guests = GuestProfile.objects.filter(
         user__pg=pg, 
-        check_out_date__isnull=True
+        check_out_date__isnull=True,
+        user__is_approved=True
     ).select_related('user', 'room')
+    
+    # Pending approval guests
+    pending_guests = GuestProfile.objects.filter(
+        user__pg=pg,
+        user__is_approved=False
+    ).select_related('user')
     
     # Monthly revenue
     current_month = timezone.now().replace(day=1)
@@ -184,9 +196,11 @@ def pg_admin_dashboard(request, pg_slug):
         status__in=['open', 'in_progress']
     ).count()
     
-    # Recent activities (last 10)
+    # Recent check-ins (approved guests only)
     recent_checkins = GuestProfile.objects.filter(
-        user__pg=pg
+        user__pg=pg,
+        user__is_approved=True,
+        check_in_date__isnull=False
     ).order_by('-created_at')[:5]
     
     # Upcoming checkouts (next 30 days)
@@ -194,7 +208,8 @@ def pg_admin_dashboard(request, pg_slug):
     upcoming_checkouts = GuestProfile.objects.filter(
         user__pg=pg,
         check_out_date__lte=upcoming_date,
-        check_out_date__gte=timezone.now().date()
+        check_out_date__gte=timezone.now().date(),
+        user__is_approved=True
     ).select_related('user', 'room')
     
     context = {
@@ -203,6 +218,7 @@ def pg_admin_dashboard(request, pg_slug):
         'occupied_rooms': occupied_rooms,
         'occupancy_rate': occupancy_rate,
         'active_guests': active_guests,
+        'pending_guests': pending_guests,
         'monthly_revenue': monthly_revenue,
         'pending_dues': pending_dues,
         'open_issues_count': open_issues_count,
@@ -628,3 +644,61 @@ def update_issue_status(request, pg_slug, issue_id):
         })
     
     return JsonResponse({'success': False, 'error': 'Invalid status'})
+
+
+@require_http_methods(["POST"])
+@login_required
+@pg_required
+def approve_guest(request, pg_slug):
+    """
+    AJAX view to approve a guest
+    """
+    pg = get_object_or_404(PG, slug=pg_slug)
+    guest_id = request.POST.get('guest_id')
+    room_id = request.POST.get('room_id')
+    rent_amount = request.POST.get('rent_amount')
+    
+    try:
+        user = get_object_or_404(CustomUser, id=guest_id, pg=pg, role='guest')
+        guest_profile = get_object_or_404(GuestProfile, user=user)
+        
+        # Approve the user
+        user.is_approved = True
+        user.save()
+        
+        # Set check-in date
+        guest_profile.check_in_date = timezone.now().date()
+        
+        # Assign room if provided
+        if room_id:
+            room = get_object_or_404(Room, id=room_id, pg=pg)
+            guest_profile.room = room
+        
+        # Set rent amount if provided
+        if rent_amount:
+            guest_profile.rent_amount = Decimal(rent_amount)
+        
+        guest_profile.save()
+        
+        return JsonResponse({'success': True})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@require_http_methods(["POST"])
+@login_required
+@pg_required
+def reject_guest(request, pg_slug):
+    """
+    AJAX view to reject a guest
+    """
+    pg = get_object_or_404(PG, slug=pg_slug)
+    guest_id = request.POST.get('guest_id')
+    
+    try:
+        user = get_object_or_404(CustomUser, id=guest_id, pg=pg, role='guest')
+        user.delete()  # This will also delete the related GuestProfile
+        
+        return JsonResponse({'success': True})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
